@@ -19,6 +19,7 @@ curl http://localhost:4000/health
 ```
 
 Notes:
+
 - The backend is a minimal Express server on port 4000 with a `/health` and `/api/ping` endpoint.
 - The frontend is a placeholder Vite + React app served by nginx on port 3000.
 - PostgreSQL data is stored in a named Docker volume `db-data`.
