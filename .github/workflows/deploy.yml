@@ -21,10 +21,10 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || vars.POSTGRES_PASSWORD || 'password' }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB || vars.POSTGRES_DB || 'groceries' }}
           DATABASE_URL: ${{ secrets.DATABASE_URL || vars.DATABASE_URL || '' }}
-          BACKEND_PORT: ${{ vars.BACKEND_PORT || '4000' }}
-          FRONTEND_PORT: ${{ vars.FRONTEND_PORT || '3000' }}
-          ADMINER_PORT: ${{ vars.ADMINER_PORT || '8081' }}
-          DB_PORT: ${{ vars.DB_PORT || '5432' }}
+          BACKEND_PORT: ${{ secrets.BACKEND_PORT || vars.BACKEND_PORT || '4000' }}
+          FRONTEND_PORT: ${{ secrets.FRONTEND_PORT || vars.FRONTEND_PORT || '3000' }}
+          ADMINER_PORT: ${{ secrets.ADMINER_PORT || vars.ADMINER_PORT || '8081' }}
+          DB_PORT: ${{ secrets.DB_PORT || vars.DB_PORT || '5432' }}
         run: |
           cat > .env <<EOF
           BACKEND_PORT=${BACKEND_PORT}
@@ -45,5 +45,8 @@ jobs:
       - name: Build and deploy containers
         shell: bash
         run: |
+          set -e
           docker compose down || true
           docker compose up -d --build
+          docker compose ps
+          docker compose logs frontend --tail 100 || true
