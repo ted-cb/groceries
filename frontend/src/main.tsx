@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 function App() {
   return (
     <div style={{ padding: 20 }}>
-      <h1>Grocery List Manager by Ted</h1>
+      <h1>Grocery List Manager by Ted B</h1>
       <p>Frontend placeholder — Phase 0</p>
     </div>
   );
