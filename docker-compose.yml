@@ -3,36 +3,36 @@ services:
   backend:
     build: ./backend
     ports:
-      - "4000:4000"
+      - "${BACKEND_PORT:-4000}:4000"
     environment:
-      - PORT=4000
-      - DATABASE_URL=postgresql://postgres:password@db:5432/groceries
+      - PORT=${BACKEND_PORT:-4000}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:password@db:5432/groceries}
     depends_on:
       - db
 
   frontend:
     build: ./frontend
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - backend
 
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: groceries
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-groceries}
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
 
   adminer:
     image: adminer
     restart: always
     ports:
-      - "8081:8080"
+      - "${ADMINER_PORT:-8081}:8080"
 
 volumes:
   db-data:

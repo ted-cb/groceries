@@ -1,0 +1,49 @@
+name: Deploy to self-hosted Docker host
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    environment: production
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create .env from secrets and variables
+        shell: bash
+        env:
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER || vars.POSTGRES_USER || 'postgres' }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD || vars.POSTGRES_PASSWORD || 'password' }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB || vars.POSTGRES_DB || 'groceries' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || vars.DATABASE_URL || '' }}
+          BACKEND_PORT: ${{ vars.BACKEND_PORT || '4000' }}
+          FRONTEND_PORT: ${{ vars.FRONTEND_PORT || '3000' }}
+          ADMINER_PORT: ${{ vars.ADMINER_PORT || '8081' }}
+          DB_PORT: ${{ vars.DB_PORT || '5432' }}
+        run: |
+          cat > .env <<EOF
+          BACKEND_PORT=${BACKEND_PORT}
+          FRONTEND_PORT=${FRONTEND_PORT}
+          ADMINER_PORT=${ADMINER_PORT}
+          DB_PORT=${DB_PORT}
+          POSTGRES_USER=${POSTGRES_USER}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          POSTGRES_DB=${POSTGRES_DB}
+          EOF
+
+          if [ -n "${DATABASE_URL}" ]; then
+            echo "DATABASE_URL=${DATABASE_URL}" >> .env
+          else
+            echo "DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}" >> .env
+          fi
+
+      - name: Build and deploy containers
+        shell: bash
+        run: |
+          docker compose down || true
+          docker compose up -d --build
