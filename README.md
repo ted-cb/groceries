@@ -90,6 +90,23 @@ Vite proxies `/api` to `http://localhost:4000`.
 | PATCH | `/api/categories/:categoryId` | Rename / set sortOrder |
 | DELETE | `/api/categories/:categoryId` | Delete; body `{ reassignToCategoryId }` |
 
+## Deploy notes (session cookies)
+
+After login/register the app sets an httpOnly `session` cookie. Protected routes
+(`GET /api/lists`, etc.) require that cookie.
+
+| How users open the app | Set `COOKIE_SECURE` |
+|------------------------|---------------------|
+| `http://server:3000` (plain HTTP) | `false` (default) |
+| `https://…` (TLS to the browser) | `true` |
+
+If `COOKIE_SECURE=true` on plain HTTP, browsers **drop** the cookie. Login still
+looks successful (user is in the JSON response), but the next API call returns
+**Authentication required**.
+
+For GitHub Actions deploys, set environment variable `COOKIE_SECURE` on the
+`production` environment if you serve HTTPS; leave unset/`false` for HTTP.
+
 ## Stack
 
 - Frontend: React + Vite + React Router + TanStack Query

@@ -15,15 +15,21 @@ export function sessionExpiryDate(from: Date = new Date()): Date {
   return expires;
 }
 
-export function cookieOptions() {
-  const secure =
-    process.env.COOKIE_SECURE === 'true' ||
-    process.env.NODE_ENV === 'production';
+/**
+ * Secure cookies are only sent over HTTPS.
+ * Honor COOKIE_SECURE explicitly — do not force Secure from NODE_ENV alone.
+ * Production Docker on HTTP (home LAN / bare port) must set COOKIE_SECURE=false
+ * or the browser will drop the session cookie after login.
+ */
+export function isCookieSecure(): boolean {
+  return process.env.COOKIE_SECURE === 'true';
+}
 
+export function cookieOptions() {
   return {
     httpOnly: true,
     sameSite: 'lax' as const,
-    secure,
+    secure: isCookieSecure(),
     path: '/',
     maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000,
   };
@@ -49,9 +55,7 @@ export function clearSessionCookie(res: Response): void {
   res.clearCookie(SESSION_COOKIE, {
     httpOnly: true,
     sameSite: 'lax',
-    secure:
-      process.env.COOKIE_SECURE === 'true' ||
-      process.env.NODE_ENV === 'production',
+    secure: isCookieSecure(),
     path: '/',
   });
 }

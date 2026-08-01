@@ -10,6 +10,10 @@ import { errorHandler } from './middleware/errorHandler';
 export function createApp() {
   const app = express();
 
+  // Needed when running behind nginx / another reverse proxy so cookies and
+  // IPs are derived correctly if HTTPS is terminated upstream.
+  app.set('trust proxy', 1);
+
   const corsOrigin = process.env.CORS_ORIGIN;
   if (corsOrigin) {
     app.use(

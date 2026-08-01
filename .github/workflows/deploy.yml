@@ -25,28 +25,36 @@ jobs:
           FRONTEND_PORT: ${{ secrets.FRONTEND_PORT || vars.FRONTEND_PORT || '3000' }}
           ADMINER_PORT: ${{ secrets.ADMINER_PORT || vars.ADMINER_PORT || '8081' }}
           DB_PORT: ${{ secrets.DB_PORT || vars.DB_PORT || '5432' }}
+          # false unless the site is served over HTTPS to the browser
+          COOKIE_SECURE: ${{ vars.COOKIE_SECURE || 'false' }}
         run: |
-          cat > .env <<EOF
-          BACKEND_PORT=${BACKEND_PORT}
-          FRONTEND_PORT=${FRONTEND_PORT}
-          ADMINER_PORT=${ADMINER_PORT}
-          DB_PORT=${DB_PORT}
-          POSTGRES_USER=${POSTGRES_USER}
-          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-          POSTGRES_DB=${POSTGRES_DB}
-          EOF
+          set -euo pipefail
+          # No leading whitespace on keys — Compose would ignore or misread them.
+          {
+            echo "BACKEND_PORT=${BACKEND_PORT}"
+            echo "FRONTEND_PORT=${FRONTEND_PORT}"
+            echo "ADMINER_PORT=${ADMINER_PORT}"
+            echo "DB_PORT=${DB_PORT}"
+            echo "POSTGRES_USER=${POSTGRES_USER}"
+            echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}"
+            echo "POSTGRES_DB=${POSTGRES_DB}"
+            echo "COOKIE_SECURE=${COOKIE_SECURE}"
+            if [ -n "${DATABASE_URL}" ]; then
+              echo "DATABASE_URL=${DATABASE_URL}"
+            else
+              echo "DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
+            fi
+          } > .env
 
-          if [ -n "${DATABASE_URL}" ]; then
-            echo "DATABASE_URL=${DATABASE_URL}" >> .env
-          else
-            echo "DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}" >> .env
-          fi
+          echo "Wrote .env (secrets redacted):"
+          sed -E 's/(PASSWORD|DATABASE_URL)=.*/\1=***/' .env
 
       - name: Build and deploy containers
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
           docker compose down || true
           docker compose up -d --build
           docker compose ps
-          docker compose logs frontend --tail 100 || true
+          docker compose logs backend --tail 50 || true
+          docker compose logs frontend --tail 50 || true
