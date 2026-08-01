@@ -7,38 +7,17 @@ import * as listsApi from '../api/lists';
 import * as itemsApi from '../api/items';
 import type { GroceryItem } from '../api/items';
 import * as categoriesApi from '../api/categories';
-import type { Category } from '../api/categories';
+import * as itemMemoriesApi from '../api/itemMemories';
+import type { ItemMemory } from '../api/itemMemories';
 import { ItemNameCombobox } from '../components/ItemNameCombobox';
 import { Modal } from '../components/Modal';
 import { SortableItemGroup } from '../components/SortableItemGroup';
-import type { ItemMemory } from '../api/itemMemories';
+import {
+  findExactMemory,
+  normalizeItemNameKey,
+  pickPromptDefaultCategoryId,
+} from '../lib/itemName';
 import { handleWriteError } from '../sync/handleWriteError';
-
-const LAST_CATEGORY_KEY = 'grocery-last-category-id';
-
-function pickDefaultCategoryId(categories: Category[]): string {
-  if (categories.length === 0) return '';
-
-  try {
-    const stored = localStorage.getItem(LAST_CATEGORY_KEY);
-    if (stored && categories.some((c) => c.id === stored)) {
-      return stored;
-    }
-  } catch {
-    // ignore storage errors
-  }
-
-  const other = categories.find((c) => c.name === 'Other');
-  return other?.id ?? categories[0].id;
-}
-
-function rememberCategory(categoryId: string) {
-  try {
-    localStorage.setItem(LAST_CATEGORY_KEY, categoryId);
-  } catch {
-    // ignore
-  }
-}
 
 export function ListDetailPage() {
   const { listId = '' } = useParams<{ listId: string }>();
@@ -46,9 +25,18 @@ export function ListDetailPage() {
   const queryClient = useQueryClient();
 
   const [quickName, setQuickName] = useState('');
-  const [quickCategoryId, setQuickCategoryId] = useState('');
   const [quickError, setQuickError] = useState<string | null>(null);
+  const [resolvingCategory, setResolvingCategory] = useState(false);
   const quickNameRef = useRef<HTMLInputElement>(null);
+  /** Suggestion pick still “sticks” until the typed name diverges. */
+  const pickedMemoryRef = useRef<ItemMemory | null>(null);
+
+  const [categoryPrompt, setCategoryPrompt] = useState<{
+    name: string;
+  } | null>(null);
+  const [promptCategoryId, setPromptCategoryId] = useState('');
+  const [promptError, setPromptError] = useState<string | null>(null);
+  const promptCatId = useId();
 
   const [editItem, setEditItem] = useState<GroceryItem | null>(null);
   const [editName, setEditName] = useState('');
@@ -67,7 +55,6 @@ export function ListDetailPage() {
   const editQtyId = useId();
   const editNoteId = useId();
   const editCatId = useId();
-  const quickCatId = useId();
   const quickNameId = useId();
   const hideCheckedId = useId();
 
@@ -100,12 +87,6 @@ export function ListDetailPage() {
   const categories = categoriesQuery.data ?? [];
 
   useEffect(() => {
-    if (categories.length > 0 && !quickCategoryId) {
-      setQuickCategoryId(pickDefaultCategoryId(categories));
-    }
-  }, [categories, quickCategoryId]);
-
-  useEffect(() => {
     if (editItem) {
       setEditName(editItem.name);
       setEditQuantity(editItem.quantity ?? '');
@@ -115,6 +96,13 @@ export function ListDetailPage() {
       requestAnimationFrame(() => editNameRef.current?.focus());
     }
   }, [editItem]);
+
+  useEffect(() => {
+    if (categoryPrompt) {
+      setPromptCategoryId(pickPromptDefaultCategoryId(categories));
+      setPromptError(null);
+    }
+  }, [categoryPrompt, categories]);
 
   const listInvalidateKeys = useMemo(
     () => [['lists', listId, 'items'], ['lists', listId], ['lists']],
@@ -129,6 +117,7 @@ export function ListDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ['lists', listId, 'items'] });
       void queryClient.invalidateQueries({ queryKey: ['lists', listId] });
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
+      void queryClient.invalidateQueries({ queryKey: ['item-memories'] });
     },
   });
 
@@ -143,6 +132,7 @@ export function ListDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ['lists', listId, 'items'] });
       void queryClient.invalidateQueries({ queryKey: ['lists', listId] });
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
+      void queryClient.invalidateQueries({ queryKey: ['item-memories'] });
     },
   });
 
@@ -328,44 +318,114 @@ export function ListDetailPage() {
     reorderMutation.mutate(orderedIds);
   }
 
-  function applyQuickAddMemory(memory: ItemMemory) {
-    setQuickName(memory.name);
-    if (categories.some((c) => c.id === memory.categoryId)) {
-      setQuickCategoryId(memory.categoryId);
-      rememberCategory(memory.categoryId);
-    }
+  async function createListItem(name: string, categoryId: string) {
+    await createMutation.mutateAsync({ name, categoryId });
+    pickedMemoryRef.current = null;
+    setQuickName('');
+    setCategoryPrompt(null);
+    setPromptError(null);
     setQuickError(null);
+    quickNameRef.current?.focus();
   }
 
-  async function onQuickAdd(e: FormEvent) {
-    e.preventDefault();
-    setQuickError(null);
+  function openCategoryPrompt(name: string) {
+    setCategoryPrompt({ name });
+    setPromptCategoryId(pickPromptDefaultCategoryId(categories));
+    setPromptError(null);
+  }
 
-    const name = quickName.trim();
+  /**
+   * Resolve category for a typed name: sticky suggestion pick → exact memory → prompt.
+   */
+  async function resolveAndAdd(nameInput: string) {
+    setQuickError(null);
+    const name = nameInput.trim();
     if (!name) {
       setQuickError('Item name is required');
       quickNameRef.current?.focus();
       return;
     }
-    if (!quickCategoryId) {
-      setQuickError('Choose a category');
+    if (categories.length === 0) {
+      setQuickError('No categories available. Create one first.');
       return;
     }
 
+    const nameKey = normalizeItemNameKey(name);
+    const picked = pickedMemoryRef.current;
+    if (picked && picked.nameKey === nameKey) {
+      if (categories.some((c) => c.id === picked.categoryId)) {
+        try {
+          await createListItem(picked.name || name, picked.categoryId);
+        } catch (err) {
+          handleWriteError(err, {
+            queryClient,
+            invalidateKeys: listInvalidateKeys,
+            setError: setQuickError,
+            fallback: 'Could not add item. Try again.',
+          });
+        }
+        return;
+      }
+    }
+
+    setResolvingCategory(true);
     try {
-      await createMutation.mutateAsync({
-        name,
-        categoryId: quickCategoryId,
-      });
-      rememberCategory(quickCategoryId);
-      setQuickName('');
-      // Keep category from last add / suggestion (already set).
-      quickNameRef.current?.focus();
+      const data = await itemMemoriesApi.searchItemMemories(name, 20);
+      const exact = findExactMemory(data.itemMemories, name);
+      if (exact && categories.some((c) => c.id === exact.categoryId)) {
+        await createListItem(exact.name || name, exact.categoryId);
+        return;
+      }
+      openCategoryPrompt(name);
+    } catch {
+      // Offline / search failed: still allow first-time category prompt.
+      openCategoryPrompt(name);
+    } finally {
+      setResolvingCategory(false);
+    }
+  }
+
+  /** Suggestion selected: known item — apply and add immediately. */
+  async function onPickMemory(memory: ItemMemory) {
+    pickedMemoryRef.current = memory;
+    setQuickName(memory.name);
+    setQuickError(null);
+    if (!categories.some((c) => c.id === memory.categoryId)) {
+      openCategoryPrompt(memory.name);
+      return;
+    }
+    try {
+      await createListItem(memory.name, memory.categoryId);
     } catch (err) {
       handleWriteError(err, {
         queryClient,
         invalidateKeys: listInvalidateKeys,
         setError: setQuickError,
+        fallback: 'Could not add item. Try again.',
+      });
+    }
+  }
+
+  async function onQuickAdd(e: FormEvent) {
+    e.preventDefault();
+    await resolveAndAdd(quickName);
+  }
+
+  async function onConfirmCategoryPrompt(e: FormEvent) {
+    e.preventDefault();
+    if (!categoryPrompt) return;
+    setPromptError(null);
+    if (!promptCategoryId) {
+      setPromptError('Choose a category');
+      return;
+    }
+    try {
+      await createListItem(categoryPrompt.name, promptCategoryId);
+    } catch (err) {
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: listInvalidateKeys,
+        setError: setPromptError,
         fallback: 'Could not add item. Try again.',
       });
     }
@@ -394,7 +454,6 @@ export function ListDetailPage() {
         quantity: editQuantity.trim() || null,
         note: editNote.trim() || null,
       });
-      rememberCategory(editCategoryId);
       setEditItem(null);
     } catch (err) {
       handleWriteError(err, {
@@ -517,7 +576,10 @@ export function ListDetailPage() {
 
       {listQuery.isSuccess && itemsQuery.isSuccess && categoriesQuery.isSuccess && (
         <div id="main-content" tabIndex={-1}>
-          <form className="quick-add card shell" onSubmit={(e) => void onQuickAdd(e)}>
+          <form
+            className="quick-add quick-add-smart card shell"
+            onSubmit={(e) => void onQuickAdd(e)}
+          >
             <label className="quick-add-name" htmlFor={quickNameId}>
               <span className="sr-only">Item name</span>
               <ItemNameCombobox
@@ -526,33 +588,38 @@ export function ListDetailPage() {
                 value={quickName}
                 onChange={(next) => {
                   setQuickName(next);
+                  const picked = pickedMemoryRef.current;
+                  if (
+                    picked &&
+                    normalizeItemNameKey(next) !== picked.nameKey
+                  ) {
+                    pickedMemoryRef.current = null;
+                  }
                   if (quickError) setQuickError(null);
                 }}
-                onPick={applyQuickAddMemory}
-                disabled={createMutation.isPending}
+                onPick={(memory) => {
+                  void onPickMemory(memory);
+                }}
+                disabled={
+                  createMutation.isPending ||
+                  resolvingCategory ||
+                  Boolean(categoryPrompt)
+                }
               />
-            </label>
-            <label className="quick-add-category" htmlFor={quickCatId}>
-              <span className="sr-only">Category</span>
-              <select
-                id={quickCatId}
-                value={quickCategoryId}
-                onChange={(e) => setQuickCategoryId(e.target.value)}
-                disabled={createMutation.isPending || categories.length === 0}
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
             </label>
             <button
               type="submit"
               className="btn primary"
-              disabled={createMutation.isPending || categories.length === 0}
+              disabled={
+                createMutation.isPending ||
+                resolvingCategory ||
+                categories.length === 0 ||
+                Boolean(categoryPrompt)
+              }
             >
-              {createMutation.isPending ? 'Adding…' : 'Add'}
+              {createMutation.isPending || resolvingCategory
+                ? 'Adding…'
+                : 'Add'}
             </button>
             {quickError && (
               <p className="error quick-add-error" role="alert">
@@ -612,7 +679,8 @@ export function ListDetailPage() {
               <div className="card empty-state">
                 <h3>No items yet</h3>
                 <p className="muted">
-                  Type a name above and press Enter or tap Add to start this list.
+                  Type a name above and press Enter or tap Add. New items ask for a
+                  category once; remembered names go to the right aisle automatically.
                 </p>
               </div>
             ) : itemGroups.length === 0 ? (
@@ -671,6 +739,68 @@ export function ListDetailPage() {
             )}
           </main>
         </div>
+      )}
+
+      {categoryPrompt && (
+        <Modal
+          title="Choose a category"
+          onClose={() => {
+            if (!createMutation.isPending) {
+              setCategoryPrompt(null);
+              setPromptError(null);
+              quickNameRef.current?.focus();
+            }
+          }}
+          busy={createMutation.isPending}
+        >
+          <p className="modal-lead">
+            First time adding <strong>{categoryPrompt.name}</strong>. Pick an
+            aisle — we&apos;ll remember it next time.
+          </p>
+          <form className="form" onSubmit={(e) => void onConfirmCategoryPrompt(e)}>
+            <label htmlFor={promptCatId}>
+              Category
+              <select
+                id={promptCatId}
+                value={promptCategoryId}
+                onChange={(e) => setPromptCategoryId(e.target.value)}
+                disabled={createMutation.isPending || categories.length === 0}
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {promptError && (
+              <p className="error" role="alert">
+                {promptError}
+              </p>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={() => {
+                  setCategoryPrompt(null);
+                  setPromptError(null);
+                  quickNameRef.current?.focus();
+                }}
+                disabled={createMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn primary"
+                disabled={createMutation.isPending || !promptCategoryId}
+              >
+                {createMutation.isPending ? 'Adding…' : 'Add item'}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {editItem && (

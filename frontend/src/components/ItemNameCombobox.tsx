@@ -28,7 +28,8 @@ type ItemNameComboboxProps = {
 
 /**
  * Accessible combobox for quick-add: debounced server search of item memories.
- * Enter with a highlighted option applies the suggestion; Enter with none submits the form.
+ * Enter / click on a suggestion calls onPick (parent may apply name + add immediately).
+ * Enter with no highlight lets the form submit normally.
  */
 export function ItemNameCombobox({
   id,
@@ -128,11 +129,11 @@ export function ItemNameCombobox({
 
     if (event.key === 'Enter') {
       if (open && highlightIndex >= 0 && suggestions[highlightIndex]) {
-        // Phase B: apply suggestion into fields; do not submit the form yet.
+        // Phase C: pick known item (parent applies category and can submit).
         event.preventDefault();
         applySuggestion(suggestions[highlightIndex]);
       }
-      // else: let the form submit (add item)
+      // else: let the form submit (resolve known / prompt unknown)
     }
   }
 

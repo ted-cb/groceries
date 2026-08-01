@@ -480,15 +480,29 @@ select:focus {
   align-items: end;
 }
 
+/* Phase C: name + Add only (category via modal when unknown) */
+.quick-add.quick-add-smart {
+  grid-template-columns: 1fr;
+}
+
 @media (min-width: 560px) {
-  .quick-add {
+  .quick-add:not(.quick-add-smart) {
     grid-template-columns: 1fr minmax(8rem, 10rem) auto;
+    align-items: center;
+  }
+
+  .quick-add.quick-add-smart {
+    grid-template-columns: 1fr auto;
     align-items: center;
   }
 
   .quick-add-error {
     grid-column: 1 / -1;
   }
+}
+
+.modal-lead {
+  margin: 0 0 0.25rem;
 }
 
 .quick-add-name,

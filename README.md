@@ -73,7 +73,8 @@ cd frontend && npm test
 | Critical-flow unit/API tests | Done (Phase 8) |
 | Item memory (name → category catalog) | Done (Phase A) |
 | Quick-add autocomplete | Done (Phase B) |
-| Smart add (category only when unknown) | Next (Phase C) |
+| Smart add (category only when unknown) | Done (Phase C) |
+| Check-off removes item from list | Next (Phase D) |
 
 ## API surface (auth required unless noted)
 
