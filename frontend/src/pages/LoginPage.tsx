@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useId, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
@@ -10,6 +10,9 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const emailId = useId();
+  const passwordId = useId();
+  const errorId = useId();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -31,25 +34,32 @@ export function LoginPage() {
 
   return (
     <div className="page center">
-      <div className="card auth-card">
+      <main id="main-content" className="card auth-card" tabIndex={-1}>
         <h1>Log in</h1>
         <p className="muted">Access your grocery lists</p>
 
-        <form onSubmit={onSubmit} className="form">
-          <label>
+        <form
+          onSubmit={(e) => void onSubmit(e)}
+          className="form"
+          aria-describedby={error ? errorId : undefined}
+        >
+          <label htmlFor={emailId}>
             Email
             <input
+              id={emailId}
               type="email"
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoFocus
             />
           </label>
 
-          <label>
+          <label htmlFor={passwordId}>
             Password
             <input
+              id={passwordId}
               type="password"
               autoComplete="current-password"
               value={password}
@@ -58,7 +68,11 @@ export function LoginPage() {
             />
           </label>
 
-          {error && <p className="error" role="alert">{error}</p>}
+          {error && (
+            <p id={errorId} className="error" role="alert">
+              {error}
+            </p>
+          )}
 
           <button type="submit" className="btn primary" disabled={submitting}>
             {submitting ? 'Logging in…' : 'Log in'}
@@ -68,7 +82,7 @@ export function LoginPage() {
         <p className="footer-link">
           No account? <Link to="/register">Create one</Link>
         </p>
-      </div>
+      </main>
     </div>
   );
 }

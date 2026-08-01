@@ -36,6 +36,18 @@ a {
   font-weight: 600;
 }
 
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 45%, white);
+  outline-offset: 2px;
+}
+
+/* Prefer keyboard-visible focus rings over mouse outline noise */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 .page {
   min-height: 100vh;
   padding: 1.25rem;
@@ -95,6 +107,22 @@ a {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+@media (max-width: 480px) {
+  .app-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .header-actions .btn,
+  .header-actions a.btn {
+    flex: 1 1 auto;
+  }
 }
 
 .app-title {
@@ -348,11 +376,42 @@ input:focus {
   margin-bottom: 0.25rem;
 }
 
+.modal:focus {
+  outline: none;
+}
+
+.modal:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 45%, white);
+  outline-offset: 2px;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.6rem;
-  margin-top: 0.25rem;
+  margin-top: 0.75rem;
+}
+
+.field-hint {
+  margin: -0.45rem 0 0;
+  font-weight: 500;
+}
+
+/* Larger tap targets for primary actions on narrow phones */
+@media (max-width: 380px) {
+  .modal-actions .btn {
+    flex: 1 1 auto;
+  }
+
+  .lists-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lists-toolbar .btn {
+    width: 100%;
+  }
 }
 
 .optional {

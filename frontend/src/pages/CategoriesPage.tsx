@@ -19,6 +19,7 @@ import { ApiError } from '../api/client';
 import * as categoriesApi from '../api/categories';
 import type { Category } from '../api/categories';
 import { DragHandle } from '../components/DragHandle';
+import { Modal } from '../components/Modal';
 import { arrayMove } from '../dnd/arrayMove';
 import { useListSensors } from '../dnd/sensors';
 import { handleWriteError } from '../sync/handleWriteError';
@@ -443,189 +444,153 @@ export function CategoriesPage() {
       </main>
 
       {createOpen && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !createMutation.isPending) {
-              setCreateOpen(false);
-            }
-          }}
+        <Modal
+          title="New category"
+          onClose={() => setCreateOpen(false)}
+          busy={createMutation.isPending}
         >
-          <div
-            className="modal card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-cat-title"
-          >
-            <h2 id="create-cat-title">New category</h2>
-            <form className="form" onSubmit={(e) => void onCreate(e)}>
-              <label htmlFor={createNameId}>
-                Name
-                <input
-                  id={createNameId}
-                  ref={createNameRef}
-                  type="text"
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                  maxLength={50}
-                  required
-                  autoComplete="off"
-                  placeholder="e.g. Bulk / Costco"
-                />
-              </label>
-              {createError && (
-                <p className="error" role="alert">
-                  {createError}
-                </p>
-              )}
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn secondary"
-                  onClick={() => setCreateOpen(false)}
-                  disabled={createMutation.isPending}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn primary"
-                  disabled={createMutation.isPending}
-                >
-                  {createMutation.isPending ? 'Creating…' : 'Create'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {renameTarget && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !updateMutation.isPending) {
-              setRenameTarget(null);
-            }
-          }}
-        >
-          <div
-            className="modal card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="rename-cat-title"
-          >
-            <h2 id="rename-cat-title">Rename category</h2>
-            <form className="form" onSubmit={(e) => void onRename(e)}>
-              <label htmlFor={renameNameId}>
-                Name
-                <input
-                  id={renameNameId}
-                  ref={renameNameRef}
-                  type="text"
-                  value={renameName}
-                  onChange={(e) => setRenameName(e.target.value)}
-                  maxLength={50}
-                  required
-                  autoComplete="off"
-                />
-              </label>
-              {renameError && (
-                <p className="error" role="alert">
-                  {renameError}
-                </p>
-              )}
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn secondary"
-                  onClick={() => setRenameTarget(null)}
-                  disabled={updateMutation.isPending}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn primary"
-                  disabled={updateMutation.isPending}
-                >
-                  {updateMutation.isPending ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {deleteTarget && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !deleteMutation.isPending) {
-              setDeleteTarget(null);
-            }
-          }}
-        >
-          <div
-            className="modal card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-cat-title"
-          >
-            <h2 id="delete-cat-title">Delete category?</h2>
-            <p>
-              Delete <strong>{deleteTarget.name}</strong>
-              {(deleteTarget.itemCount ?? 0) > 0
-                ? ` and reassign its ${deleteTarget.itemCount} item${
-                    deleteTarget.itemCount === 1 ? '' : 's'
-                  } to another category`
-                : ''}
-              ? This cannot be undone.
-            </p>
-            <label htmlFor={reassignId}>
-              Move items to
-              <select
-                id={reassignId}
-                value={reassignToId}
-                onChange={(e) => setReassignToId(e.target.value)}
-              >
-                {reassignOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+          <form className="form" onSubmit={(e) => void onCreate(e)}>
+            <label htmlFor={createNameId}>
+              Name
+              <input
+                id={createNameId}
+                ref={createNameRef}
+                type="text"
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                maxLength={50}
+                required
+                autoComplete="off"
+                placeholder="e.g. Bulk / Costco"
+              />
             </label>
-            {deleteMutation.isError && (
+            {createError && (
               <p className="error" role="alert">
-                {deleteMutation.error instanceof ApiError
-                  ? deleteMutation.error.message
-                  : 'Could not delete category.'}
+                {createError}
               </p>
             )}
             <div className="modal-actions">
               <button
                 type="button"
                 className="btn secondary"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleteMutation.isPending}
+                onClick={() => setCreateOpen(false)}
+                disabled={createMutation.isPending}
               >
                 Cancel
               </button>
               <button
-                type="button"
-                className="btn danger"
-                onClick={() => void confirmDelete()}
-                disabled={deleteMutation.isPending || !reassignToId}
+                type="submit"
+                className="btn primary"
+                disabled={createMutation.isPending}
               >
-                {deleteMutation.isPending ? 'Deleting…' : 'Delete category'}
+                {createMutation.isPending ? 'Creating…' : 'Create'}
               </button>
             </div>
+          </form>
+        </Modal>
+      )}
+
+      {renameTarget && (
+        <Modal
+          title="Rename category"
+          onClose={() => setRenameTarget(null)}
+          busy={updateMutation.isPending}
+        >
+          <form className="form" onSubmit={(e) => void onRename(e)}>
+            <label htmlFor={renameNameId}>
+              Name
+              <input
+                id={renameNameId}
+                ref={renameNameRef}
+                type="text"
+                value={renameName}
+                onChange={(e) => setRenameName(e.target.value)}
+                maxLength={50}
+                required
+                autoComplete="off"
+              />
+            </label>
+            {renameError && (
+              <p className="error" role="alert">
+                {renameError}
+              </p>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={() => setRenameTarget(null)}
+                disabled={updateMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn primary"
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {deleteTarget && (
+        <Modal
+          title="Delete category?"
+          onClose={() => setDeleteTarget(null)}
+          busy={deleteMutation.isPending}
+        >
+          <p>
+            Delete <strong>{deleteTarget.name}</strong>
+            {(deleteTarget.itemCount ?? 0) > 0
+              ? ` and reassign its ${deleteTarget.itemCount} item${
+                  deleteTarget.itemCount === 1 ? '' : 's'
+                } to another category`
+              : ''}
+            ? This cannot be undone.
+          </p>
+          <label htmlFor={reassignId}>
+            Move items to
+            <select
+              id={reassignId}
+              value={reassignToId}
+              onChange={(e) => setReassignToId(e.target.value)}
+            >
+              {reassignOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {deleteMutation.isError && (
+            <p className="error" role="alert">
+              {deleteMutation.error instanceof ApiError
+                ? deleteMutation.error.message
+                : 'Could not delete category.'}
+            </p>
+          )}
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn danger"
+              onClick={() => void confirmDelete()}
+              disabled={deleteMutation.isPending || !reassignToId}
+            >
+              {deleteMutation.isPending ? 'Deleting…' : 'Delete category'}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

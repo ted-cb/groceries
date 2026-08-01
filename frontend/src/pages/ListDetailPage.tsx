@@ -8,6 +8,7 @@ import * as itemsApi from '../api/items';
 import type { GroceryItem } from '../api/items';
 import * as categoriesApi from '../api/categories';
 import type { Category } from '../api/categories';
+import { Modal } from '../components/Modal';
 import { SortableItemGroup } from '../components/SortableItemGroup';
 import { handleWriteError } from '../sync/handleWriteError';
 
@@ -664,206 +665,165 @@ export function ListDetailPage() {
       )}
 
       {editItem && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !updateMutation.isPending) {
-              setEditItem(null);
-            }
-          }}
+        <Modal
+          title="Edit item"
+          onClose={() => setEditItem(null)}
+          busy={updateMutation.isPending}
         >
-          <div
-            className="modal card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="edit-item-title"
-          >
-            <h2 id="edit-item-title">Edit item</h2>
-            <form className="form" onSubmit={(e) => void onSaveEdit(e)}>
-              <label htmlFor={editNameId}>
-                Name
-                <input
-                  id={editNameId}
-                  ref={editNameRef}
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  maxLength={200}
-                  required
-                  autoComplete="off"
-                />
-              </label>
-              <label htmlFor={editQtyId}>
-                Quantity <span className="optional">(optional)</span>
-                <input
-                  id={editQtyId}
-                  type="text"
-                  value={editQuantity}
-                  onChange={(e) => setEditQuantity(e.target.value)}
-                  maxLength={100}
-                  placeholder="e.g. 2 lb"
-                  autoComplete="off"
-                />
-              </label>
-              <label htmlFor={editNoteId}>
-                Note <span className="optional">(optional)</span>
-                <input
-                  id={editNoteId}
-                  type="text"
-                  value={editNote}
-                  onChange={(e) => setEditNote(e.target.value)}
-                  maxLength={200}
-                  placeholder="e.g. organic"
-                  autoComplete="off"
-                />
-              </label>
-              <label htmlFor={editCatId}>
-                Category
-                <select
-                  id={editCatId}
-                  value={editCategoryId}
-                  onChange={(e) => setEditCategoryId(e.target.value)}
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {editError && (
-                <p className="error" role="alert">
-                  {editError}
-                </p>
-              )}
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn secondary"
-                  onClick={() => setEditItem(null)}
-                  disabled={updateMutation.isPending}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn primary"
-                  disabled={updateMutation.isPending}
-                >
-                  {updateMutation.isPending ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+          <form className="form" onSubmit={(e) => void onSaveEdit(e)}>
+            <label htmlFor={editNameId}>
+              Name
+              <input
+                id={editNameId}
+                ref={editNameRef}
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                maxLength={200}
+                required
+                autoComplete="off"
+              />
+            </label>
+            <label htmlFor={editQtyId}>
+              Quantity <span className="optional">(optional)</span>
+              <input
+                id={editQtyId}
+                type="text"
+                value={editQuantity}
+                onChange={(e) => setEditQuantity(e.target.value)}
+                maxLength={100}
+                placeholder="e.g. 2 lb"
+                autoComplete="off"
+              />
+            </label>
+            <label htmlFor={editNoteId}>
+              Note <span className="optional">(optional)</span>
+              <input
+                id={editNoteId}
+                type="text"
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                maxLength={200}
+                placeholder="e.g. organic"
+                autoComplete="off"
+              />
+            </label>
+            <label htmlFor={editCatId}>
+              Category
+              <select
+                id={editCatId}
+                value={editCategoryId}
+                onChange={(e) => setEditCategoryId(e.target.value)}
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {editError && (
+              <p className="error" role="alert">
+                {editError}
+              </p>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={() => setEditItem(null)}
+                disabled={updateMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn primary"
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {deleteTarget && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !deleteMutation.isPending) {
-              setDeleteTarget(null);
-            }
-          }}
+        <Modal
+          title="Delete item?"
+          onClose={() => setDeleteTarget(null)}
+          busy={deleteMutation.isPending}
         >
-          <div
-            className="modal card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-item-title"
-          >
-            <h2 id="delete-item-title">Delete item?</h2>
-            <p>
-              Remove <strong>{deleteTarget.name}</strong> from this list?
+          <p>
+            Remove <strong>{deleteTarget.name}</strong> from this list?
+          </p>
+          {deleteMutation.isError && (
+            <p className="error" role="alert">
+              {deleteMutation.error instanceof ApiError
+                ? deleteMutation.error.message
+                : 'Could not delete item. Try again.'}
             </p>
-            {deleteMutation.isError && (
-              <p className="error" role="alert">
-                {deleteMutation.error instanceof ApiError
-                  ? deleteMutation.error.message
-                  : 'Could not delete item. Try again.'}
-              </p>
-            )}
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn secondary"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleteMutation.isPending}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn danger"
-                onClick={() => void confirmDelete()}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
+          )}
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn danger"
+              onClick={() => void confirmDelete()}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {showClearCheckedConfirm && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={(e) => {
-            if (
-              e.target === e.currentTarget &&
-              !clearCheckedMutation.isPending
-            ) {
-              setShowClearCheckedConfirm(false);
-            }
-          }}
+        <Modal
+          title="Clear checked items?"
+          onClose={() => setShowClearCheckedConfirm(false)}
+          busy={clearCheckedMutation.isPending}
         >
-          <div
-            className="modal card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="clear-checked-title"
-          >
-            <h2 id="clear-checked-title">Clear checked items?</h2>
-            <p>
-              Remove{' '}
-              <strong>
-                {checkedCount} checked item{checkedCount === 1 ? '' : 's'}
-              </strong>{' '}
-              from this list? This cannot be undone.
+          <p>
+            Remove{' '}
+            <strong>
+              {checkedCount} checked item{checkedCount === 1 ? '' : 's'}
+            </strong>{' '}
+            from this list? This cannot be undone.
+          </p>
+          {clearCheckedMutation.isError && (
+            <p className="error" role="alert">
+              {clearCheckedMutation.error instanceof ApiError
+                ? clearCheckedMutation.error.message
+                : 'Could not clear checked items. Try again.'}
             </p>
-            {clearCheckedMutation.isError && (
-              <p className="error" role="alert">
-                {clearCheckedMutation.error instanceof ApiError
-                  ? clearCheckedMutation.error.message
-                  : 'Could not clear checked items. Try again.'}
-              </p>
-            )}
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn secondary"
-                onClick={() => setShowClearCheckedConfirm(false)}
-                disabled={clearCheckedMutation.isPending}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn danger"
-                onClick={() => void confirmClearChecked()}
-                disabled={clearCheckedMutation.isPending || checkedCount === 0}
-              >
-                {clearCheckedMutation.isPending
-                  ? 'Clearing…'
-                  : 'Clear checked'}
-              </button>
-            </div>
+          )}
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => setShowClearCheckedConfirm(false)}
+              disabled={clearCheckedMutation.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn danger"
+              onClick={() => void confirmClearChecked()}
+              disabled={clearCheckedMutation.isPending || checkedCount === 0}
+            >
+              {clearCheckedMutation.isPending ? 'Clearing…' : 'Clear checked'}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

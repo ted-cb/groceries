@@ -8,7 +8,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="page center">
-        <p className="muted">Loading…</p>
+        <p className="muted" role="status" aria-live="polite">
+          Loading…
+        </p>
       </div>
     );
   }

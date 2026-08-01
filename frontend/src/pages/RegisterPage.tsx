@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useId, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
@@ -11,6 +11,10 @@ export function RegisterPage() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const emailId = useId();
+  const passwordId = useId();
+  const confirmId = useId();
+  const errorId = useId();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -43,37 +47,49 @@ export function RegisterPage() {
 
   return (
     <div className="page center">
-      <div className="card auth-card">
+      <main id="main-content" className="card auth-card" tabIndex={-1}>
         <h1>Create account</h1>
         <p className="muted">Save lists across your devices</p>
 
-        <form onSubmit={onSubmit} className="form">
-          <label>
+        <form
+          onSubmit={(e) => void onSubmit(e)}
+          className="form"
+          aria-describedby={error ? errorId : undefined}
+        >
+          <label htmlFor={emailId}>
             Email
             <input
+              id={emailId}
               type="email"
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoFocus
             />
           </label>
 
-          <label>
+          <label htmlFor={passwordId}>
             Password
             <input
+              id={passwordId}
               type="password"
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={8}
+              aria-describedby={`${passwordId}-hint`}
             />
           </label>
+          <p id={`${passwordId}-hint`} className="field-hint muted small">
+            At least 8 characters.
+          </p>
 
-          <label>
+          <label htmlFor={confirmId}>
             Confirm password
             <input
+              id={confirmId}
               type="password"
               autoComplete="new-password"
               value={confirm}
@@ -83,7 +99,11 @@ export function RegisterPage() {
             />
           </label>
 
-          {error && <p className="error" role="alert">{error}</p>}
+          {error && (
+            <p id={errorId} className="error" role="alert">
+              {error}
+            </p>
+          )}
 
           <button type="submit" className="btn primary" disabled={submitting}>
             {submitting ? 'Creating…' : 'Create account'}
@@ -93,7 +113,7 @@ export function RegisterPage() {
         <p className="footer-link">
           Already have an account? <Link to="/login">Log in</Link>
         </p>
-      </div>
+      </main>
     </div>
   );
 }

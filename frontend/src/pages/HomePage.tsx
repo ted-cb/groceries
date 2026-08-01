@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 import * as listsApi from '../api/lists';
 import type { GroceryList } from '../api/lists';
+import { Modal } from '../components/Modal';
 import { handleWriteError } from '../sync/handleWriteError';
 
 function formatRelativeDate(iso: string): string {
@@ -297,122 +298,98 @@ export function HomePage() {
       </main>
 
       {modal && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeModal();
-          }}
+        <Modal
+          title={modal.type === 'create' ? 'New list' : 'Rename list'}
+          onClose={closeModal}
+          busy={saving}
         >
-          <div
-            className="modal card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="list-modal-title"
-          >
-            <h2 id="list-modal-title">
-              {modal.type === 'create' ? 'New list' : 'Rename list'}
-            </h2>
-            <form className="form" onSubmit={(e) => void onSubmitModal(e)}>
-              <label htmlFor={nameFieldId}>
-                Name
-                <input
-                  id={nameFieldId}
-                  ref={nameInputRef}
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  maxLength={100}
-                  required
-                  autoComplete="off"
-                />
-              </label>
-              <label htmlFor={descFieldId}>
-                Description <span className="optional">(optional)</span>
-                <input
-                  id={descFieldId}
-                  type="text"
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  maxLength={500}
-                  autoComplete="off"
-                />
-              </label>
-              {formError && (
-                <p className="error" role="alert">
-                  {formError}
-                </p>
-              )}
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn secondary"
-                  onClick={closeModal}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn primary" disabled={saving}>
-                  {saving
-                    ? 'Saving…'
-                    : modal.type === 'create'
-                      ? 'Create list'
-                      : 'Save'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {deleteTarget && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !deleteMutation.isPending) {
-              setDeleteTarget(null);
-            }
-          }}
-        >
-          <div
-            className="modal card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-modal-title"
-          >
-            <h2 id="delete-modal-title">Delete list?</h2>
-            <p>
-              Permanently delete <strong>{deleteTarget.name}</strong> and all of
-              its items? This cannot be undone.
-            </p>
-            {deleteMutation.isError && (
+          <form className="form" onSubmit={(e) => void onSubmitModal(e)}>
+            <label htmlFor={nameFieldId}>
+              Name
+              <input
+                id={nameFieldId}
+                ref={nameInputRef}
+                type="text"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                maxLength={100}
+                required
+                autoComplete="off"
+              />
+            </label>
+            <label htmlFor={descFieldId}>
+              Description <span className="optional">(optional)</span>
+              <input
+                id={descFieldId}
+                type="text"
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                maxLength={500}
+                autoComplete="off"
+              />
+            </label>
+            {formError && (
               <p className="error" role="alert">
-                {deleteMutation.error instanceof ApiError
-                  ? deleteMutation.error.message
-                  : 'Could not delete list. Try again.'}
+                {formError}
               </p>
             )}
             <div className="modal-actions">
               <button
                 type="button"
                 className="btn secondary"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleteMutation.isPending}
+                onClick={closeModal}
+                disabled={saving}
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                className="btn danger"
-                onClick={() => void confirmDelete()}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? 'Deleting…' : 'Delete list'}
+              <button type="submit" className="btn primary" disabled={saving}>
+                {saving
+                  ? 'Saving…'
+                  : modal.type === 'create'
+                    ? 'Create list'
+                    : 'Save'}
               </button>
             </div>
+          </form>
+        </Modal>
+      )}
+
+      {deleteTarget && (
+        <Modal
+          title="Delete list?"
+          onClose={() => setDeleteTarget(null)}
+          busy={deleteMutation.isPending}
+        >
+          <p>
+            Permanently delete <strong>{deleteTarget.name}</strong> and all of
+            its items? This cannot be undone.
+          </p>
+          {deleteMutation.isError && (
+            <p className="error" role="alert">
+              {deleteMutation.error instanceof ApiError
+                ? deleteMutation.error.message
+                : 'Could not delete list. Try again.'}
+            </p>
+          )}
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn danger"
+              onClick={() => void confirmDelete()}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Deleting…' : 'Delete list'}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

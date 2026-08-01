@@ -46,6 +46,16 @@ npm run dev
 
 Vite proxies `/api` to `http://localhost:4000`.
 
+## Tests
+
+```bash
+# Backend unit + health/auth-gate API checks
+cd backend && npm test
+
+# Frontend unit tests (sync helpers, reorder util, modal a11y)
+cd frontend && npm test
+```
+
 ## Current scope
 
 | Feature | Status |
@@ -59,7 +69,8 @@ Vite proxies `/api` to `http://localhost:4000`.
 | Check-off / shopping flow | Done |
 | Drag-and-drop reorder (items & categories) | Done |
 | Sync status, write retries, conflict refresh | Done (Phase 7) |
-| Accessibility, polish, tests | Phase 8 |
+| Accessibility, empty/error polish, responsive | Done (Phase 8) |
+| Critical-flow unit/API tests | Done (Phase 8) |
 
 ## API surface (auth required unless noted)
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -25,7 +25,7 @@ type SortableItemGroupProps = {
   onDelete: (item: GroceryItem) => void;
 };
 
-function SortableItemRow({
+const SortableItemRow = memo(function SortableItemRow({
   item,
   onToggleChecked,
   onEdit,
@@ -121,7 +121,7 @@ function SortableItemRow({
       </div>
     </li>
   );
-}
+});
 
 /**
  * Sortable list of items that share the same category and checked state.
