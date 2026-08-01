@@ -8,8 +8,10 @@ import * as itemsApi from '../api/items';
 import type { GroceryItem } from '../api/items';
 import * as categoriesApi from '../api/categories';
 import type { Category } from '../api/categories';
+import { ItemNameCombobox } from '../components/ItemNameCombobox';
 import { Modal } from '../components/Modal';
 import { SortableItemGroup } from '../components/SortableItemGroup';
+import type { ItemMemory } from '../api/itemMemories';
 import { handleWriteError } from '../sync/handleWriteError';
 
 const LAST_CATEGORY_KEY = 'grocery-last-category-id';
@@ -326,6 +328,15 @@ export function ListDetailPage() {
     reorderMutation.mutate(orderedIds);
   }
 
+  function applyQuickAddMemory(memory: ItemMemory) {
+    setQuickName(memory.name);
+    if (categories.some((c) => c.id === memory.categoryId)) {
+      setQuickCategoryId(memory.categoryId);
+      rememberCategory(memory.categoryId);
+    }
+    setQuickError(null);
+  }
+
   async function onQuickAdd(e: FormEvent) {
     e.preventDefault();
     setQuickError(null);
@@ -348,6 +359,7 @@ export function ListDetailPage() {
       });
       rememberCategory(quickCategoryId);
       setQuickName('');
+      // Keep category from last add / suggestion (already set).
       quickNameRef.current?.focus();
     } catch (err) {
       handleWriteError(err, {
@@ -508,18 +520,15 @@ export function ListDetailPage() {
           <form className="quick-add card shell" onSubmit={(e) => void onQuickAdd(e)}>
             <label className="quick-add-name" htmlFor={quickNameId}>
               <span className="sr-only">Item name</span>
-              <input
+              <ItemNameCombobox
                 id={quickNameId}
-                ref={quickNameRef}
-                type="text"
-                placeholder="Add an item…"
+                inputRef={quickNameRef}
                 value={quickName}
-                onChange={(e) => {
-                  setQuickName(e.target.value);
+                onChange={(next) => {
+                  setQuickName(next);
                   if (quickError) setQuickError(null);
                 }}
-                maxLength={200}
-                autoComplete="off"
+                onPick={applyQuickAddMemory}
                 disabled={createMutation.isPending}
               />
             </label>

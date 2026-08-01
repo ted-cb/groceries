@@ -506,6 +506,80 @@ select:focus {
   margin: 0;
 }
 
+/* Item name combobox (Phase B autocomplete) */
+.item-combobox {
+  position: relative;
+  width: 100%;
+}
+
+.item-combobox input {
+  width: 100%;
+}
+
+.item-combobox-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 30;
+  margin: 0;
+  padding: 0.3rem 0;
+  list-style: none;
+  max-height: min(16rem, 50vh);
+  overflow: auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(26, 46, 28, 0.14);
+}
+
+.item-combobox-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+}
+
+.item-combobox-option-active,
+.item-combobox-option:hover {
+  background: #e8f0ea;
+}
+
+.item-combobox-option-name {
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-combobox-option-category {
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.item-combobox-status {
+  padding: 0.65rem 0.85rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Keep dropdown above sticky mobile quick-add chrome */
+@media (max-width: 480px) {
+  .quick-add {
+    overflow: visible;
+  }
+
+  .item-combobox-list {
+    max-height: min(12rem, 40vh);
+  }
+}
+
 .items-main {
   margin-top: 1.25rem;
 }

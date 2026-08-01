@@ -72,7 +72,8 @@ cd frontend && npm test
 | Accessibility, empty/error polish, responsive | Done (Phase 8) |
 | Critical-flow unit/API tests | Done (Phase 8) |
 | Item memory (name → category catalog) | Done (Phase A) |
-| Quick-add autocomplete | Next (Phase B) |
+| Quick-add autocomplete | Done (Phase B) |
+| Smart add (category only when unknown) | Next (Phase C) |
 
 ## API surface (auth required unless noted)
 
