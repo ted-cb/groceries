@@ -20,19 +20,20 @@ import { useListSensors } from '../dnd/sensors';
 type SortableItemGroupProps = {
   items: GroceryItem[];
   onReorder: (orderedIds: string[]) => void;
-  onToggleChecked: (item: GroceryItem) => void;
+  /** Phase D: check-off removes the item from the list. */
+  onComplete: (item: GroceryItem) => void;
   onEdit: (item: GroceryItem) => void;
   onDelete: (item: GroceryItem) => void;
 };
 
 const SortableItemRow = memo(function SortableItemRow({
   item,
-  onToggleChecked,
+  onComplete,
   onEdit,
   onDelete,
 }: {
   item: GroceryItem;
-  onToggleChecked: (item: GroceryItem) => void;
+  onComplete: (item: GroceryItem) => void;
   onEdit: (item: GroceryItem) => void;
   onDelete: (item: GroceryItem) => void;
 }) {
@@ -50,12 +51,7 @@ const SortableItemRow = memo(function SortableItemRow({
     transition,
   };
 
-  const rowClass = [
-    'item-row',
-    'card',
-    item.isChecked ? 'item-row-checked' : '',
-    isDragging ? 'item-row-dragging' : '',
-  ]
+  const rowClass = ['item-row', 'card', isDragging ? 'item-row-dragging' : '']
     .filter(Boolean)
     .join(' ');
 
@@ -69,26 +65,17 @@ const SortableItemRow = memo(function SortableItemRow({
       <label className="item-check">
         <input
           type="checkbox"
-          checked={item.isChecked}
-          onChange={() => onToggleChecked(item)}
-          aria-label={
-            item.isChecked
-              ? `Uncheck ${item.name}`
-              : `Check off ${item.name}`
-          }
+          checked={false}
+          onChange={() => onComplete(item)}
+          aria-label={`Check off ${item.name}`}
         />
         <span className="item-check-box" aria-hidden />
       </label>
       <button
         type="button"
         className="item-row-body item-row-toggle"
-        onClick={() => onToggleChecked(item)}
-        aria-pressed={item.isChecked}
-        aria-label={
-          item.isChecked
-            ? `Uncheck ${item.name}`
-            : `Check off ${item.name}`
-        }
+        onClick={() => onComplete(item)}
+        aria-label={`Check off ${item.name}`}
       >
         <span className="item-name">{item.name}</span>
         {(item.quantity || item.note) && (
@@ -124,13 +111,13 @@ const SortableItemRow = memo(function SortableItemRow({
 });
 
 /**
- * Sortable list of items that share the same category and checked state.
- * Separate instances keep drag scoped so order does not fight check-off grouping.
+ * Sortable list of items in one category.
+ * Check-off completes (removes) the item; order is scoped to this group.
  */
 export function SortableItemGroup({
   items,
   onReorder,
-  onToggleChecked,
+  onComplete,
   onEdit,
   onDelete,
 }: SortableItemGroupProps) {
@@ -178,7 +165,7 @@ export function SortableItemGroup({
             <SortableItemRow
               key={item.id}
               item={item}
-              onToggleChecked={onToggleChecked}
+              onComplete={onComplete}
               onEdit={onEdit}
               onDelete={onDelete}
             />
@@ -187,13 +174,7 @@ export function SortableItemGroup({
       </SortableContext>
       <DragOverlay>
         {activeItem ? (
-          <div
-            className={
-              activeItem.isChecked
-                ? 'item-row card item-row-checked drag-overlay-card'
-                : 'item-row card drag-overlay-card'
-            }
-          >
+          <div className="item-row card drag-overlay-card">
             <span className="drag-handle drag-handle-static" aria-hidden>
               <span className="drag-handle-icon">
                 <span />
