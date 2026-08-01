@@ -1,0 +1,163 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f6f4;
+  --card: #ffffff;
+  --text: #1a2e1c;
+  --muted: #5c6b5e;
+  --border: #d5ddd6;
+  --primary: #2f6f3e;
+  --primary-hover: #255a32;
+  --danger: #b42318;
+  --radius: 12px;
+  --shadow: 0 8px 24px rgba(26, 46, 28, 0.08);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+    sans-serif;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #e8f0ea 0%, var(--bg) 45%);
+}
+
+a {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 1.25rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.page.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+}
+
+.auth-card {
+  width: min(100%, 400px);
+}
+
+.shell {
+  margin-top: 1rem;
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+h1,
+h2 {
+  margin-top: 0;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+input {
+  font: inherit;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  min-height: 44px;
+}
+
+input:focus {
+  outline: 2px solid color-mix(in srgb, var(--primary) 40%, white);
+  border-color: var(--primary);
+}
+
+.btn {
+  font: inherit;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  min-height: 44px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.btn.secondary {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn.secondary:hover:not(:disabled) {
+  background: #f0f4f1;
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.footer-link {
+  margin: 1.25rem 0 0;
+  text-align: center;
+  color: var(--muted);
+}

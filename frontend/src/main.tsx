@@ -1,13 +1,10 @@
-import React from "react";
-import { createRoot } from "react-dom/client";
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { App } from './App';
+import './styles.css';
 
-function App() {
-  return (
-    <div style={{ padding: 20 }}>
-      <h1>Grocery List Manager by Ted B</h1>
-      <p>Frontend placeholder — Phase 0</p>
-    </div>
-  );
-}
-
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);

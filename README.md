@@ -1,64 +1,66 @@
-# Grocery List Manager — Local Dev (Phase 0)
+# Grocery List Manager
 
-This repository contains a minimal scaffold for the Grocery List Manager MVP and a Docker Compose setup for local development.
+Authenticated grocery lists with multi-device refresh-on-load sync. Phase 1 delivers registration, login, logout, protected routes, and session cookies.
 
-Quick start (requires Docker & Docker Compose):
+## Quick start (Docker)
+
+Requires Docker & Docker Compose.
 
 ```bash
-# copy the example env
 cp .env.example .env
-
-# build and start the stack
 docker compose up --build
-
-# backend health endpoint
-curl http://localhost:4000/health
-
-# frontend is available at http://localhost:3000
-# Adminer (DB UI) at http://localhost:8081
 ```
 
-Notes:
+- App: http://localhost:3000
+- API health: http://localhost:4000/health (also proxied at http://localhost:3000/health)
+- Adminer: http://localhost:8081
 
-- The backend is a minimal Express server on port 4000 with a `/health` and `/api/ping` endpoint.
-- The frontend is a placeholder Vite + React app served by nginx on port 3000.
-- PostgreSQL data is stored in a named Docker volume `db-data`.
+### Try auth
 
-Remote Docker deployment
+1. Open http://localhost:3000 — you should land on **Log in**
+2. Create an account (password ≥ 8 characters)
+3. You reach the protected home shell
+4. Refresh the page — you stay signed in
+5. Log out — you return to login and cannot open `/` without signing in again
 
-1. Copy the example environment file on the target machine and adjust the ports and database credentials:
+## Local development (without full Compose for FE/BE)
 
-   ```bash
-   cp .env.example .env
-   nano .env
-   ```
+```bash
+# Terminal 1 — database
+docker compose up db -d
 
-2. Start the stack on the target machine:
+# Terminal 2 — API
+cd backend
+cp ../.env.example .env   # set DATABASE_URL to localhost
+# DATABASE_URL=postgresql://postgres:password@localhost:5432/groceries
+# CORS_ORIGIN=http://localhost:5173
+npm install
+npx prisma generate
+npx prisma db push
+npm run dev
 
-   ```bash
-   docker compose up -d --build
-   ```
+# Terminal 3 — frontend
+cd frontend
+npm install
+npm run dev
+```
 
-3. To update later, run:
+Vite proxies `/api` to `http://localhost:4000`.
 
-   ```bash
-   docker compose pull
-   docker compose up -d --build
-   ```
+## Phase 1 scope
 
-GitHub Actions with a self-hosted runner
+| Feature | Status |
+|---------|--------|
+| Register (email/password) | Done |
+| Login / logout | Done |
+| httpOnly session cookie (30 days) | Done |
+| Protected home shell | Done |
+| Seed default categories on register | Done (API only; UI later) |
+| Lists CRUD | Phase 2 |
 
-1. Install a GitHub Actions runner on the Docker host machine.
-2. In your GitHub repository, create these secrets:
-   - `POSTGRES_USER`
-   - `POSTGRES_PASSWORD`
-   - `POSTGRES_DB`
-   - `DATABASE_URL` (optional if you want to override the default)
-3. Optionally add repository variables:
-   - `BACKEND_PORT`
-   - `FRONTEND_PORT`
-   - `ADMINER_PORT`
-   - `DB_PORT`
-4. Push to the `main` branch to trigger deployment automatically.
+## Stack
 
-The repository includes a workflow in [.github/workflows/deploy.yml](.github/workflows/deploy.yml) that uses the self-hosted runner to build and start the stack on the target machine.
+- Frontend: React + Vite + React Router + TanStack Query
+- Backend: Express + Prisma + PostgreSQL
+- Auth: Argon2id passwords, server sessions, httpOnly cookies
+- Deploy: Docker Compose; frontend nginx proxies `/api` for same-origin cookies

@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  sessions     Session[]
+  categories   Category[]
+  lists        List[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// Included now so registration can seed defaults (Phase 1).
+// Full category CRUD lands in a later phase.
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String
+  sortOrder Int      @map("sort_order")
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     Item[]
+
+  @@unique([userId, name])
+  @@index([userId, sortOrder])
+  @@map("categories")
+}
+
+// Stub tables so Phase 2–3 can land without a rewrite of FKs.
+model List {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  name        String
+  description String?
+  sortOrder   Int?     @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       Item[]
+
+  @@index([userId])
+  @@map("lists")
+}
+
+model Item {
+  id         String    @id @default(uuid()) @db.Uuid
+  listId     String    @map("list_id") @db.Uuid
+  categoryId String    @map("category_id") @db.Uuid
+  name       String
+  quantity   String?
+  note       String?
+  isChecked  Boolean   @default(false) @map("is_checked")
+  checkedAt  DateTime? @map("checked_at")
+  sortOrder  Int?      @map("sort_order")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  list       List      @relation(fields: [listId], references: [id], onDelete: Cascade)
+  category   Category  @relation(fields: [categoryId], references: [id])
+
+  @@index([listId])
+  @@index([listId, categoryId, sortOrder])
+  @@map("items")
+}
