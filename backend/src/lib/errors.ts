@@ -24,3 +24,7 @@ export function unauthorized(message = 'Authentication required'): AppError {
 export function conflict(message: string): AppError {
   return new AppError(409, 'CONFLICT', message);
 }
+
+export function notFound(message = 'Resource not found'): AppError {
+  return new AppError(404, 'NOT_FOUND', message);
+}

@@ -1,0 +1,495 @@
+import { FormEvent, useEffect, useId, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../auth/AuthContext';
+import { ApiError } from '../api/client';
+import * as categoriesApi from '../api/categories';
+import type { Category } from '../api/categories';
+
+export function CategoriesPage() {
+  const { user, logout } = useAuth();
+  const queryClient = useQueryClient();
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
+  const createNameRef = useRef<HTMLInputElement>(null);
+  const createNameId = useId();
+
+  const [renameTarget, setRenameTarget] = useState<Category | null>(null);
+  const [renameName, setRenameName] = useState('');
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const renameNameRef = useRef<HTMLInputElement>(null);
+  const renameNameId = useId();
+
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [reassignToId, setReassignToId] = useState('');
+  const reassignId = useId();
+
+  const categoriesQuery = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const data = await categoriesApi.getCategories();
+      return data.categories;
+    },
+  });
+
+  const categories = categoriesQuery.data ?? [];
+
+  const createMutation = useMutation({
+    mutationFn: categoriesApi.createCategory,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      categoriesApi.updateCategory(id, { name }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['categories'] });
+      // Item embeds category name — refresh open lists
+      void queryClient.invalidateQueries({ queryKey: ['lists'] });
+    },
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      categoriesApi.reorderCategories(orderedIds),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['categories'], data.categories);
+      void queryClient.invalidateQueries({ queryKey: ['lists'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: ({
+      id,
+      reassignToCategoryId,
+    }: {
+      id: string;
+      reassignToCategoryId: string;
+    }) => categoriesApi.deleteCategory(id, reassignToCategoryId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['categories'] });
+      void queryClient.invalidateQueries({ queryKey: ['lists'] });
+    },
+  });
+
+  useEffect(() => {
+    if (createOpen) {
+      setCreateName('');
+      setCreateError(null);
+      requestAnimationFrame(() => createNameRef.current?.focus());
+    }
+  }, [createOpen]);
+
+  useEffect(() => {
+    if (renameTarget) {
+      setRenameName(renameTarget.name);
+      setRenameError(null);
+      requestAnimationFrame(() => renameNameRef.current?.focus());
+    }
+  }, [renameTarget]);
+
+  useEffect(() => {
+    if (deleteTarget) {
+      const fallback =
+        categories.find((c) => c.id !== deleteTarget.id && c.name === 'Other') ??
+        categories.find((c) => c.id !== deleteTarget.id);
+      setReassignToId(fallback?.id ?? '');
+      deleteMutation.reset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when target changes
+  }, [deleteTarget]);
+
+  async function onCreate(e: FormEvent) {
+    e.preventDefault();
+    setCreateError(null);
+    const name = createName.trim();
+    if (!name) {
+      setCreateError('Category name is required');
+      return;
+    }
+    try {
+      await createMutation.mutateAsync({ name });
+      setCreateOpen(false);
+    } catch (err) {
+      setCreateError(
+        err instanceof ApiError ? err.message : 'Could not create category.'
+      );
+    }
+  }
+
+  async function onRename(e: FormEvent) {
+    e.preventDefault();
+    if (!renameTarget) return;
+    setRenameError(null);
+    const name = renameName.trim();
+    if (!name) {
+      setRenameError('Category name is required');
+      return;
+    }
+    try {
+      await updateMutation.mutateAsync({ id: renameTarget.id, name });
+      setRenameTarget(null);
+    } catch (err) {
+      setRenameError(
+        err instanceof ApiError ? err.message : 'Could not rename category.'
+      );
+    }
+  }
+
+  async function moveCategory(categoryId: string, direction: -1 | 1) {
+    const index = categories.findIndex((c) => c.id === categoryId);
+    if (index < 0) return;
+    const next = index + direction;
+    if (next < 0 || next >= categories.length) return;
+
+    const ordered = categories.map((c) => c.id);
+    const [moved] = ordered.splice(index, 1);
+    ordered.splice(next, 0, moved);
+
+    // Optimistic local order for snappy UI
+    const reordered = ordered
+      .map((id) => categories.find((c) => c.id === id)!)
+      .map((c, i) => ({ ...c, sortOrder: i }));
+    queryClient.setQueryData(['categories'], reordered);
+
+    try {
+      await reorderMutation.mutateAsync(ordered);
+    } catch {
+      void queryClient.invalidateQueries({ queryKey: ['categories'] });
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || !reassignToId) return;
+    try {
+      await deleteMutation.mutateAsync({
+        id: deleteTarget.id,
+        reassignToCategoryId: reassignToId,
+      });
+      setDeleteTarget(null);
+    } catch {
+      // mutation error shown in dialog
+    }
+  }
+
+  const canDelete = categories.length > 1;
+  const reassignOptions = deleteTarget
+    ? categories.filter((c) => c.id !== deleteTarget.id)
+    : [];
+
+  return (
+    <div className="page">
+      <header className="app-header">
+        <div>
+          <p className="breadcrumb">
+            <Link to="/">← All lists</Link>
+          </p>
+          <h1 className="app-title">Categories</h1>
+          <p className="muted small">
+            Organize aisles for shopping · signed in as {user?.email}
+          </p>
+        </div>
+        <div className="header-actions">
+          <button type="button" className="btn secondary" onClick={() => logout()}>
+            Log out
+          </button>
+        </div>
+      </header>
+
+      <main className="lists-main">
+        <div className="lists-toolbar">
+          <h2 className="lists-heading">Your categories</h2>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => setCreateOpen(true)}
+          >
+            New category
+          </button>
+        </div>
+
+        {categoriesQuery.isLoading && (
+          <p className="muted" role="status">
+            Loading categories…
+          </p>
+        )}
+
+        {categoriesQuery.isError && (
+          <div className="card shell" role="alert">
+            <p className="error">
+              {categoriesQuery.error instanceof ApiError
+                ? categoriesQuery.error.message
+                : 'Could not load categories.'}
+            </p>
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => void categoriesQuery.refetch()}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {categoriesQuery.isSuccess && (
+          <ul className="category-rows">
+            {categories.map((category, index) => (
+              <li key={category.id} className="category-row card">
+                <div className="category-row-body">
+                  <span className="category-name">
+                    {category.name}
+                    {category.isDefault && (
+                      <span className="default-pill">Default</span>
+                    )}
+                  </span>
+                  <span className="muted small">
+                    {category.itemCount ?? 0} item
+                    {(category.itemCount ?? 0) === 1 ? '' : 's'} across lists
+                  </span>
+                </div>
+                <div className="category-row-actions">
+                  <button
+                    type="button"
+                    className="btn secondary btn-sm"
+                    aria-label={`Move ${category.name} up`}
+                    disabled={index === 0 || reorderMutation.isPending}
+                    onClick={() => void moveCategory(category.id, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="btn secondary btn-sm"
+                    aria-label={`Move ${category.name} down`}
+                    disabled={
+                      index === categories.length - 1 ||
+                      reorderMutation.isPending
+                    }
+                    onClick={() => void moveCategory(category.id, 1)}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    className="btn secondary btn-sm"
+                    onClick={() => setRenameTarget(category)}
+                  >
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    className="btn danger-outline btn-sm"
+                    disabled={!canDelete}
+                    title={
+                      canDelete
+                        ? 'Delete category'
+                        : 'Cannot delete the last category'
+                    }
+                    onClick={() => setDeleteTarget(category)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="muted small shell">
+          Order here controls how categories appear when grouping items on a
+          list. Drag-and-drop arrives in a later phase; use ↑ / ↓ for now.
+        </p>
+      </main>
+
+      {createOpen && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !createMutation.isPending) {
+              setCreateOpen(false);
+            }
+          }}
+        >
+          <div
+            className="modal card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-cat-title"
+          >
+            <h2 id="create-cat-title">New category</h2>
+            <form className="form" onSubmit={(e) => void onCreate(e)}>
+              <label htmlFor={createNameId}>
+                Name
+                <input
+                  id={createNameId}
+                  ref={createNameRef}
+                  type="text"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  maxLength={50}
+                  required
+                  autoComplete="off"
+                  placeholder="e.g. Bulk / Costco"
+                />
+              </label>
+              {createError && (
+                <p className="error" role="alert">
+                  {createError}
+                </p>
+              )}
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn secondary"
+                  onClick={() => setCreateOpen(false)}
+                  disabled={createMutation.isPending}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn primary"
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending ? 'Creating…' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {renameTarget && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !updateMutation.isPending) {
+              setRenameTarget(null);
+            }
+          }}
+        >
+          <div
+            className="modal card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rename-cat-title"
+          >
+            <h2 id="rename-cat-title">Rename category</h2>
+            <form className="form" onSubmit={(e) => void onRename(e)}>
+              <label htmlFor={renameNameId}>
+                Name
+                <input
+                  id={renameNameId}
+                  ref={renameNameRef}
+                  type="text"
+                  value={renameName}
+                  onChange={(e) => setRenameName(e.target.value)}
+                  maxLength={50}
+                  required
+                  autoComplete="off"
+                />
+              </label>
+              {renameError && (
+                <p className="error" role="alert">
+                  {renameError}
+                </p>
+              )}
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn secondary"
+                  onClick={() => setRenameTarget(null)}
+                  disabled={updateMutation.isPending}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn primary"
+                  disabled={updateMutation.isPending}
+                >
+                  {updateMutation.isPending ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !deleteMutation.isPending) {
+              setDeleteTarget(null);
+            }
+          }}
+        >
+          <div
+            className="modal card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-cat-title"
+          >
+            <h2 id="delete-cat-title">Delete category?</h2>
+            <p>
+              Delete <strong>{deleteTarget.name}</strong>
+              {(deleteTarget.itemCount ?? 0) > 0
+                ? ` and reassign its ${deleteTarget.itemCount} item${
+                    deleteTarget.itemCount === 1 ? '' : 's'
+                  } to another category`
+                : ''}
+              ? This cannot be undone.
+            </p>
+            <label htmlFor={reassignId}>
+              Move items to
+              <select
+                id={reassignId}
+                value={reassignToId}
+                onChange={(e) => setReassignToId(e.target.value)}
+              >
+                {reassignOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {deleteMutation.isError && (
+              <p className="error" role="alert">
+                {deleteMutation.error instanceof ApiError
+                  ? deleteMutation.error.message
+                  : 'Could not delete category.'}
+              </p>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn danger"
+                onClick={() => void confirmDelete()}
+                disabled={deleteMutation.isPending || !reassignToId}
+              >
+                {deleteMutation.isPending ? 'Deleting…' : 'Delete category'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -6,6 +6,8 @@ import { GuestRoute } from './components/GuestRoute';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { HomePage } from './pages/HomePage';
+import { ListDetailPage } from './pages/ListDetailPage';
+import { CategoriesPage } from './pages/CategoriesPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +44,22 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <HomePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/lists/:listId"
+              element={
+                <ProtectedRoute>
+                  <ListDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/categories"
+              element={
+                <ProtectedRoute>
+                  <CategoriesPage />
                 </ProtectedRoute>
               }
             />

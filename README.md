@@ -1,6 +1,6 @@
 # Grocery List Manager
 
-Authenticated grocery lists with multi-device refresh-on-load sync. Phase 1 delivers registration, login, logout, protected routes, and session cookies.
+Authenticated grocery lists with multi-device refresh-on-load sync. Phase 4 adds category grouping and category management.
 
 ## Quick start (Docker)
 
@@ -15,13 +15,12 @@ docker compose up --build
 - API health: http://localhost:4000/health (also proxied at http://localhost:3000/health)
 - Adminer: http://localhost:8081
 
-### Try auth
+### Try categories
 
-1. Open http://localhost:3000 — you should land on **Log in**
-2. Create an account (password ≥ 8 characters)
-3. You reach the protected home shell
-4. Refresh the page — you stay signed in
-5. Log out — you return to login and cannot open `/` without signing in again
+1. Open http://localhost:3000 — log in or create an account
+2. Open a list and add items with different categories — they group by aisle
+3. Open **Categories** to create, rename, reorder (↑/↓), or delete with reassignment
+4. Return to a list — groups follow your category order
 
 ## Local development (without full Compose for FE/BE)
 
@@ -47,16 +46,49 @@ npm run dev
 
 Vite proxies `/api` to `http://localhost:4000`.
 
-## Phase 1 scope
+## Current scope
 
 | Feature | Status |
 |---------|--------|
-| Register (email/password) | Done |
-| Login / logout | Done |
-| httpOnly session cookie (30 days) | Done |
-| Protected home shell | Done |
-| Seed default categories on register | Done (API only; UI later) |
-| Lists CRUD | Phase 2 |
+| Register / login / logout | Done |
+| Lists overview CRUD | Done |
+| List detail + items / quick-add | Done |
+| Default categories seeded on register | Done |
+| Group items by category on list detail | Done |
+| Category management (create / rename / reorder / delete + reassign) | Done |
+| Check-off / shopping flow | Phase 5 |
+| Drag-and-drop reorder (items & categories) | Phase 6 |
+
+## API surface (auth required unless noted)
+
+### Lists
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/lists` | All lists (with item counts) |
+| POST | `/api/lists` | Create list |
+| GET | `/api/lists/:listId` | List metadata + counts |
+| PATCH | `/api/lists/:listId` | Rename / update description |
+| DELETE | `/api/lists/:listId` | Delete list (items cascade) |
+
+### Items
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/lists/:listId/items` | Items for a list |
+| POST | `/api/lists/:listId/items` | Add item |
+| PATCH | `/api/items/:itemId` | Edit item fields |
+| DELETE | `/api/items/:itemId` | Delete item |
+
+### Categories
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/categories` | Categories (sort order + item counts) |
+| POST | `/api/categories` | Create custom category |
+| PUT | `/api/categories/reorder` | Set full order (`orderedIds`) |
+| PATCH | `/api/categories/:categoryId` | Rename / set sortOrder |
+| DELETE | `/api/categories/:categoryId` | Delete; body `{ reassignToCategoryId }` |
 
 ## Stack
 
