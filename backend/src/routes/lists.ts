@@ -291,6 +291,38 @@ listsRouter.post('/:listId/items', async (req, res, next) => {
   }
 });
 
+/** POST /api/lists/:listId/items/clear-checked — delete all checked items */
+listsRouter.post('/:listId/items/clear-checked', async (req, res, next) => {
+  try {
+    const listId = z.string().uuid().safeParse(req.params.listId);
+    if (!listId.success) {
+      throw validationError('Invalid list id');
+    }
+
+    await findOwnedList(listId.data, req.user!.id);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const deleted = await tx.item.deleteMany({
+        where: {
+          listId: listId.data,
+          isChecked: true,
+        },
+      });
+      if (deleted.count > 0) {
+        await tx.list.update({
+          where: { id: listId.data },
+          data: { updatedAt: new Date() },
+        });
+      }
+      return deleted;
+    });
+
+    res.json({ deletedCount: result.count });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** GET /api/lists/:listId — list metadata */
 listsRouter.get('/:listId', async (req, res, next) => {
   try {

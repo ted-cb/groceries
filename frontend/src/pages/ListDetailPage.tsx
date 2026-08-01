@@ -54,6 +54,9 @@ export function ListDetailPage() {
   const editNameRef = useRef<HTMLInputElement>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<GroceryItem | null>(null);
+  const [showClearCheckedConfirm, setShowClearCheckedConfirm] = useState(false);
+  const [hideChecked, setHideChecked] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
 
   const editNameId = useId();
   const editQtyId = useId();
@@ -61,6 +64,7 @@ export function ListDetailPage() {
   const editCatId = useId();
   const quickCatId = useId();
   const quickNameId = useId();
+  const hideCheckedId = useId();
 
   const listQuery = useQuery({
     queryKey: ['lists', listId],
@@ -130,6 +134,48 @@ export function ListDetailPage() {
     },
   });
 
+  const checkMutation = useMutation({
+    mutationFn: ({ id, isChecked }: { id: string; isChecked: boolean }) =>
+      itemsApi.updateItem(id, { isChecked }),
+    onMutate: async ({ id, isChecked }) => {
+      setCheckError(null);
+      await queryClient.cancelQueries({ queryKey: ['lists', listId, 'items'] });
+      const previous = queryClient.getQueryData<GroceryItem[]>([
+        'lists',
+        listId,
+        'items',
+      ]);
+      queryClient.setQueryData<GroceryItem[]>(
+        ['lists', listId, 'items'],
+        (old) =>
+          (old ?? []).map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  isChecked,
+                  checkedAt: isChecked ? new Date().toISOString() : null,
+                }
+              : item
+          )
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          ['lists', listId, 'items'],
+          context.previous
+        );
+      }
+      setCheckError('Could not update checked state. Try again.');
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['lists', listId, 'items'] });
+      void queryClient.invalidateQueries({ queryKey: ['lists', listId] });
+      void queryClient.invalidateQueries({ queryKey: ['lists'] });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => itemsApi.deleteItem(id),
     onSuccess: () => {
@@ -139,13 +185,32 @@ export function ListDetailPage() {
     },
   });
 
+  const clearCheckedMutation = useMutation({
+    mutationFn: () => itemsApi.clearCheckedItems(listId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['lists', listId, 'items'] });
+      void queryClient.invalidateQueries({ queryKey: ['lists', listId] });
+      void queryClient.invalidateQueries({ queryKey: ['lists'] });
+      setShowClearCheckedConfirm(false);
+    },
+  });
+
   const items = itemsQuery.data ?? [];
   const itemCount = items.length;
+  const checkedCount = useMemo(
+    () => items.filter((item) => item.isChecked).length,
+    [items]
+  );
+  const uncheckedCount = itemCount - checkedCount;
 
   /** Groups with items, in the user's category sort order. */
   const itemGroups = useMemo(() => {
+    const visibleItems = hideChecked
+      ? items.filter((item) => !item.isChecked)
+      : items;
+
     const byCategory = new Map<string, GroceryItem[]>();
-    for (const item of items) {
+    for (const item of visibleItems) {
       const list = byCategory.get(item.categoryId) ?? [];
       list.push(item);
       byCategory.set(item.categoryId, list);
@@ -153,7 +218,7 @@ export function ListDetailPage() {
 
     const sortItems = (groupItems: GroceryItem[]) =>
       [...groupItems].sort((a, b) => {
-        // Unchecked above checked (Phase 5 will make this more visible)
+        // Unchecked above checked within each category
         if (a.isChecked !== b.isChecked) {
           return a.isChecked ? 1 : -1;
         }
@@ -172,7 +237,7 @@ export function ListDetailPage() {
         seen.add(c.id);
       }
     }
-    for (const item of items) {
+    for (const item of visibleItems) {
       if (!seen.has(item.categoryId)) {
         orderedIds.push(item.categoryId);
         seen.add(item.categoryId);
@@ -193,7 +258,7 @@ export function ListDetailPage() {
         items: groupItems,
       };
     });
-  }, [items, categories]);
+  }, [items, categories, hideChecked]);
 
   async function onQuickAdd(e: FormEvent) {
     e.preventDefault();
@@ -271,9 +336,28 @@ export function ListDetailPage() {
     }
   }
 
+  function toggleChecked(item: GroceryItem) {
+    checkMutation.mutate({ id: item.id, isChecked: !item.isChecked });
+  }
+
+  async function confirmClearChecked() {
+    try {
+      await clearCheckedMutation.mutateAsync();
+    } catch {
+      // error shown via mutation state
+    }
+  }
+
   const pageLoading =
     listQuery.isLoading || itemsQuery.isLoading || categoriesQuery.isLoading;
   const pageError = listQuery.isError || itemsQuery.isError || categoriesQuery.isError;
+
+  const itemsSummary =
+    itemCount === 0
+      ? 'Empty list'
+      : checkedCount === 0
+        ? `${itemCount} item${itemCount === 1 ? '' : 's'}`
+        : `${uncheckedCount} left · ${checkedCount} checked · ${itemCount} total`;
 
   return (
     <div className="page list-detail-page">
@@ -374,13 +458,40 @@ export function ListDetailPage() {
 
           <main className="items-main">
             <div className="items-toolbar">
-              <h2 className="lists-heading">Items</h2>
-              <p className="muted small">
-                {itemCount === 0
-                  ? 'Empty list'
-                  : `${itemCount} item${itemCount === 1 ? '' : 's'}`}
-              </p>
+              <div>
+                <h2 className="lists-heading">Items</h2>
+                <p className="muted small">{itemsSummary}</p>
+              </div>
+              {itemCount > 0 && (
+                <div className="shopping-actions">
+                  {checkedCount > 0 && (
+                    <label className="hide-checked-toggle" htmlFor={hideCheckedId}>
+                      <input
+                        id={hideCheckedId}
+                        type="checkbox"
+                        checked={hideChecked}
+                        onChange={(e) => setHideChecked(e.target.checked)}
+                      />
+                      <span>Hide checked</span>
+                    </label>
+                  )}
+                  <button
+                    type="button"
+                    className="btn secondary btn-sm"
+                    disabled={checkedCount === 0}
+                    onClick={() => setShowClearCheckedConfirm(true)}
+                  >
+                    Clear checked
+                  </button>
+                </div>
+              )}
             </div>
+
+            {checkError && (
+              <p className="error shell" role="alert">
+                {checkError}
+              </p>
+            )}
 
             {itemCount === 0 ? (
               <div className="card empty-state">
@@ -388,6 +499,21 @@ export function ListDetailPage() {
                 <p className="muted">
                   Type a name above and press Enter or tap Add to start this list.
                 </p>
+              </div>
+            ) : itemGroups.length === 0 ? (
+              <div className="card empty-state">
+                <h3>All items checked</h3>
+                <p className="muted">
+                  Checked items are hidden. Turn off “Hide checked” to see them,
+                  or clear them when you are done shopping.
+                </p>
+                <button
+                  type="button"
+                  className="btn secondary"
+                  onClick={() => setHideChecked(false)}
+                >
+                  Show checked items
+                </button>
               </div>
             ) : (
               <div className="category-groups">
@@ -408,8 +534,38 @@ export function ListDetailPage() {
                     </h3>
                     <ul className="item-rows">
                       {group.items.map((item) => (
-                        <li key={item.id} className="item-row card">
-                          <div className="item-row-body">
+                        <li
+                          key={item.id}
+                          className={
+                            item.isChecked
+                              ? 'item-row card item-row-checked'
+                              : 'item-row card'
+                          }
+                        >
+                          <label className="item-check">
+                            <input
+                              type="checkbox"
+                              checked={item.isChecked}
+                              onChange={() => toggleChecked(item)}
+                              aria-label={
+                                item.isChecked
+                                  ? `Uncheck ${item.name}`
+                                  : `Check off ${item.name}`
+                              }
+                            />
+                            <span className="item-check-box" aria-hidden />
+                          </label>
+                          <button
+                            type="button"
+                            className="item-row-body item-row-toggle"
+                            onClick={() => toggleChecked(item)}
+                            aria-pressed={item.isChecked}
+                            aria-label={
+                              item.isChecked
+                                ? `Uncheck ${item.name}`
+                                : `Check off ${item.name}`
+                            }
+                          >
                             <span className="item-name">{item.name}</span>
                             {(item.quantity || item.note) && (
                               <span className="item-meta muted small">
@@ -422,7 +578,7 @@ export function ListDetailPage() {
                                 {item.note && <span>{item.note}</span>}
                               </span>
                             )}
-                          </div>
+                          </button>
                           <div className="item-row-actions">
                             <button
                               type="button"
@@ -589,6 +745,64 @@ export function ListDetailPage() {
                 disabled={deleteMutation.isPending}
               >
                 {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearCheckedConfirm && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={(e) => {
+            if (
+              e.target === e.currentTarget &&
+              !clearCheckedMutation.isPending
+            ) {
+              setShowClearCheckedConfirm(false);
+            }
+          }}
+        >
+          <div
+            className="modal card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="clear-checked-title"
+          >
+            <h2 id="clear-checked-title">Clear checked items?</h2>
+            <p>
+              Remove{' '}
+              <strong>
+                {checkedCount} checked item{checkedCount === 1 ? '' : 's'}
+              </strong>{' '}
+              from this list? This cannot be undone.
+            </p>
+            {clearCheckedMutation.isError && (
+              <p className="error" role="alert">
+                {clearCheckedMutation.error instanceof ApiError
+                  ? clearCheckedMutation.error.message
+                  : 'Could not clear checked items. Try again.'}
+              </p>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={() => setShowClearCheckedConfirm(false)}
+                disabled={clearCheckedMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn danger"
+                onClick={() => void confirmClearChecked()}
+                disabled={clearCheckedMutation.isPending || checkedCount === 0}
+              >
+                {clearCheckedMutation.isPending
+                  ? 'Clearing…'
+                  : 'Clear checked'}
               </button>
             </div>
           </div>

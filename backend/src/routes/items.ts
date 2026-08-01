@@ -29,13 +29,15 @@ const updateItemSchema = z
       .max(200, 'Note must be at most 200 characters')
       .optional()
       .nullable(),
+    isChecked: z.boolean().optional(),
   })
   .refine(
     (data) =>
       data.name !== undefined ||
       data.categoryId !== undefined ||
       data.quantity !== undefined ||
-      data.note !== undefined,
+      data.note !== undefined ||
+      data.isChecked !== undefined,
     { message: 'Provide at least one field to update' }
   );
 
@@ -134,6 +136,8 @@ itemsRouter.patch('/:itemId', async (req, res, next) => {
       categoryId?: string;
       quantity?: string | null;
       note?: string | null;
+      isChecked?: boolean;
+      checkedAt?: Date | null;
     } = {};
 
     if (parsed.data.name !== undefined) {
@@ -153,6 +157,10 @@ itemsRouter.patch('/:itemId', async (req, res, next) => {
         parsed.data.note === '' || parsed.data.note === null
           ? null
           : parsed.data.note;
+    }
+    if (parsed.data.isChecked !== undefined) {
+      data.isChecked = parsed.data.isChecked;
+      data.checkedAt = parsed.data.isChecked ? new Date() : null;
     }
 
     const item = await prisma.item.update({

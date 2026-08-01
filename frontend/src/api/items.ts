@@ -41,6 +41,11 @@ export type UpdateItemInput = {
   categoryId?: string;
   quantity?: string | null;
   note?: string | null;
+  isChecked?: boolean;
+};
+
+export type ClearCheckedResponse = {
+  deletedCount: number;
 };
 
 export function getListItems(listId: string) {
@@ -65,4 +70,11 @@ export function deleteItem(itemId: string) {
   return apiFetch<void>(`/api/items/${itemId}`, {
     method: 'DELETE',
   });
+}
+
+export function clearCheckedItems(listId: string) {
+  return apiFetch<ClearCheckedResponse>(
+    `/api/lists/${listId}/items/clear-checked`,
+    { method: 'POST' }
+  );
 }
