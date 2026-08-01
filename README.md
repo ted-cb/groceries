@@ -1,6 +1,6 @@
 # Grocery List Manager
 
-Authenticated grocery lists with multi-device refresh-on-load sync. Phase 4 adds category grouping and category management.
+Authenticated grocery lists with multi-device **refresh-on-load** sync, save status indicators, and write retries.
 
 ## Quick start (Docker)
 
@@ -56,8 +56,10 @@ Vite proxies `/api` to `http://localhost:4000`.
 | Default categories seeded on register | Done |
 | Group items by category on list detail | Done |
 | Category management (create / rename / reorder / delete + reassign) | Done |
-| Check-off / shopping flow | Phase 5 |
-| Drag-and-drop reorder (items & categories) | Phase 6 |
+| Check-off / shopping flow | Done |
+| Drag-and-drop reorder (items & categories) | Done |
+| Sync status, write retries, conflict refresh | Done (Phase 7) |
+| Accessibility, polish, tests | Phase 8 |
 
 ## API surface (auth required unless noted)
 

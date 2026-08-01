@@ -21,6 +21,7 @@ import type { Category } from '../api/categories';
 import { DragHandle } from '../components/DragHandle';
 import { arrayMove } from '../dnd/arrayMove';
 import { useListSensors } from '../dnd/sensors';
+import { handleWriteError } from '../sync/handleWriteError';
 
 function SortableCategoryRow({
   category,
@@ -139,6 +140,7 @@ export function CategoriesPage() {
 
   const createMutation = useMutation({
     mutationFn: categoriesApi.createCategory,
+    meta: { syncTrack: true, syncLabel: 'category' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
@@ -147,6 +149,7 @@ export function CategoriesPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) =>
       categoriesApi.updateCategory(id, { name }),
+    meta: { syncTrack: true, syncLabel: 'category' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['categories'] });
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
@@ -156,14 +159,19 @@ export function CategoriesPage() {
   const reorderMutation = useMutation({
     mutationFn: (orderedIds: string[]) =>
       categoriesApi.reorderCategories(orderedIds),
+    meta: { syncTrack: true, syncLabel: 'reorder' },
     onSuccess: (data) => {
       queryClient.setQueryData(['categories'], data.categories);
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
       setReorderError(null);
     },
-    onError: () => {
-      setReorderError('Could not save category order. Try again.');
-      void queryClient.invalidateQueries({ queryKey: ['categories'] });
+    onError: (err) => {
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: [['categories']],
+        setError: setReorderError,
+        fallback: 'Could not save category order. Try again.',
+      });
     },
   });
 
@@ -175,9 +183,16 @@ export function CategoriesPage() {
       id: string;
       reassignToCategoryId: string;
     }) => categoriesApi.deleteCategory(id, reassignToCategoryId),
+    meta: { syncTrack: true, syncLabel: 'category' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['categories'] });
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
+    },
+    onError: (err) => {
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: [['categories'], ['lists']],
+      });
     },
   });
 
@@ -220,9 +235,12 @@ export function CategoriesPage() {
       await createMutation.mutateAsync({ name });
       setCreateOpen(false);
     } catch (err) {
-      setCreateError(
-        err instanceof ApiError ? err.message : 'Could not create category.'
-      );
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: [['categories']],
+        setError: setCreateError,
+        fallback: 'Could not create category.',
+      });
     }
   }
 
@@ -239,9 +257,12 @@ export function CategoriesPage() {
       await updateMutation.mutateAsync({ id: renameTarget.id, name });
       setRenameTarget(null);
     } catch (err) {
-      setRenameError(
-        err instanceof ApiError ? err.message : 'Could not rename category.'
-      );
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: [['categories']],
+        setError: setRenameError,
+        fallback: 'Could not rename category.',
+      });
     }
   }
 
@@ -289,6 +310,11 @@ export function CategoriesPage() {
     ? categories.filter((c) => c.id !== deleteTarget.id)
     : [];
 
+  const isRefetching =
+    categoriesQuery.isFetching &&
+    !categoriesQuery.isLoading &&
+    categoriesQuery.isSuccess;
+
   return (
     <div className="page">
       <header className="app-header">
@@ -299,6 +325,12 @@ export function CategoriesPage() {
           <h1 className="app-title">Categories</h1>
           <p className="muted small">
             Organize aisles for shopping · signed in as {user?.email}
+            {isRefetching && (
+              <span className="sync-inline" role="status">
+                {' '}
+                · Refreshing…
+              </span>
+            )}
           </p>
         </div>
         <div className="header-actions">
@@ -308,7 +340,7 @@ export function CategoriesPage() {
         </div>
       </header>
 
-      <main className="lists-main">
+      <main id="main-content" className="lists-main" tabIndex={-1}>
         <div className="lists-toolbar">
           <h2 className="lists-heading">Your categories</h2>
           <button
@@ -327,11 +359,12 @@ export function CategoriesPage() {
         )}
 
         {categoriesQuery.isError && (
-          <div className="card shell" role="alert">
+          <div className="card shell error-state" role="alert">
+            <h3 className="error-state-title">Could not load categories</h3>
             <p className="error">
               {categoriesQuery.error instanceof ApiError
                 ? categoriesQuery.error.message
-                : 'Could not load categories.'}
+                : 'Something went wrong while loading categories.'}
             </p>
             <button
               type="button"
@@ -344,9 +377,19 @@ export function CategoriesPage() {
         )}
 
         {reorderError && (
-          <p className="error shell" role="alert">
-            {reorderError}
-          </p>
+          <div className="sync-error-banner shell" role="alert">
+            <p className="error">{reorderError}</p>
+            <button
+              type="button"
+              className="btn secondary btn-sm"
+              onClick={() => {
+                setReorderError(null);
+                void categoriesQuery.refetch();
+              }}
+            >
+              Refresh
+            </button>
+          </div>
         )}
 
         {categoriesQuery.isSuccess && (

@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 import * as listsApi from '../api/lists';
 import type { GroceryList } from '../api/lists';
+import { handleWriteError } from '../sync/handleWriteError';
 
 function formatRelativeDate(iso: string): string {
   const date = new Date(iso);
@@ -67,6 +68,7 @@ export function HomePage() {
 
   const createMutation = useMutation({
     mutationFn: listsApi.createList,
+    meta: { syncTrack: true, syncLabel: 'list' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
     },
@@ -75,6 +77,7 @@ export function HomePage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, ...input }: { id: string; name?: string; description?: string | null }) =>
       listsApi.updateList(id, input),
+    meta: { syncTrack: true, syncLabel: 'list' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
     },
@@ -82,8 +85,15 @@ export function HomePage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => listsApi.deleteList(id),
+    meta: { syncTrack: true, syncLabel: 'list' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
+    },
+    onError: (err) => {
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: [['lists']],
+      });
     },
   });
 
@@ -149,11 +159,12 @@ export function HomePage() {
       }
       setModal(null);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setFormError(err.message);
-      } else {
-        setFormError('Something went wrong. Please try again.');
-      }
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: [['lists']],
+        setError: setFormError,
+        fallback: 'Something went wrong. Please try again.',
+      });
     }
   }
 
@@ -173,12 +184,23 @@ export function HomePage() {
   const lists = listsQuery.data ?? [];
   const saving = createMutation.isPending || updateMutation.isPending;
 
+  const isRefetching =
+    listsQuery.isFetching && !listsQuery.isLoading && listsQuery.isSuccess;
+
   return (
     <div className="page">
       <header className="app-header">
         <div>
           <h1 className="app-title">Grocery List Manager</h1>
-          <p className="muted small">Signed in as {user?.email}</p>
+          <p className="muted small">
+            Signed in as {user?.email}
+            {isRefetching && (
+              <span className="sync-inline" role="status">
+                {' '}
+                · Refreshing…
+              </span>
+            )}
+          </p>
         </div>
         <div className="header-actions">
           <Link to="/categories" className="btn secondary">
@@ -190,7 +212,7 @@ export function HomePage() {
         </div>
       </header>
 
-      <main className="lists-main">
+      <main id="main-content" className="lists-main" tabIndex={-1}>
         <div className="lists-toolbar">
           <h2 className="lists-heading">Your lists</h2>
           <button type="button" className="btn primary" onClick={openCreate}>
@@ -205,11 +227,12 @@ export function HomePage() {
         )}
 
         {listsQuery.isError && (
-          <div className="card shell" role="alert">
+          <div className="card shell error-state" role="alert">
+            <h3 className="error-state-title">Could not load lists</h3>
             <p className="error">
               {listsQuery.error instanceof ApiError
                 ? listsQuery.error.message
-                : 'Could not load lists.'}
+                : 'Something went wrong while loading your lists.'}
             </p>
             <button
               type="button"
@@ -226,6 +249,7 @@ export function HomePage() {
             <h3>No lists yet</h3>
             <p className="muted">
               Create your first grocery list to start planning a shopping trip.
+              Changes sync to every device you use.
             </p>
             <button type="button" className="btn primary" onClick={openCreate}>
               Create a list

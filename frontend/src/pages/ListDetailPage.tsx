@@ -9,6 +9,7 @@ import type { GroceryItem } from '../api/items';
 import * as categoriesApi from '../api/categories';
 import type { Category } from '../api/categories';
 import { SortableItemGroup } from '../components/SortableItemGroup';
+import { handleWriteError } from '../sync/handleWriteError';
 
 const LAST_CATEGORY_KEY = 'grocery-last-category-id';
 
@@ -112,9 +113,15 @@ export function ListDetailPage() {
     }
   }, [editItem]);
 
+  const listInvalidateKeys = useMemo(
+    () => [['lists', listId, 'items'], ['lists', listId], ['lists']],
+    [listId]
+  );
+
   const createMutation = useMutation({
     mutationFn: (input: itemsApi.CreateItemInput) =>
       itemsApi.createItem(listId, input),
+    meta: { syncTrack: true, syncLabel: 'item' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['lists', listId, 'items'] });
       void queryClient.invalidateQueries({ queryKey: ['lists', listId] });
@@ -128,6 +135,7 @@ export function ListDetailPage() {
       ...input
     }: { id: string } & itemsApi.UpdateItemInput) =>
       itemsApi.updateItem(id, input),
+    meta: { syncTrack: true, syncLabel: 'item' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['lists', listId, 'items'] });
       void queryClient.invalidateQueries({ queryKey: ['lists', listId] });
@@ -138,6 +146,7 @@ export function ListDetailPage() {
   const checkMutation = useMutation({
     mutationFn: ({ id, isChecked }: { id: string; isChecked: boolean }) =>
       itemsApi.updateItem(id, { isChecked }),
+    meta: { syncTrack: true, syncLabel: 'check' },
     onMutate: async ({ id, isChecked }) => {
       setCheckError(null);
       await queryClient.cancelQueries({ queryKey: ['lists', listId, 'items'] });
@@ -161,14 +170,19 @@ export function ListDetailPage() {
       );
       return { previous };
     },
-    onError: (_err, _vars, context) => {
+    onError: (err, _vars, context) => {
       if (context?.previous) {
         queryClient.setQueryData(
           ['lists', listId, 'items'],
           context.previous
         );
       }
-      setCheckError('Could not update checked state. Try again.');
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: listInvalidateKeys,
+        setError: setCheckError,
+        fallback: 'Could not update checked state. Try again.',
+      });
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['lists', listId, 'items'] });
@@ -179,15 +193,23 @@ export function ListDetailPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => itemsApi.deleteItem(id),
+    meta: { syncTrack: true, syncLabel: 'item' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['lists', listId, 'items'] });
       void queryClient.invalidateQueries({ queryKey: ['lists', listId] });
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
     },
+    onError: (err) => {
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: listInvalidateKeys,
+      });
+    },
   });
 
   const clearCheckedMutation = useMutation({
     mutationFn: () => itemsApi.clearCheckedItems(listId),
+    meta: { syncTrack: true, syncLabel: 'clear' },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['lists', listId, 'items'] });
       void queryClient.invalidateQueries({ queryKey: ['lists', listId] });
@@ -199,16 +221,19 @@ export function ListDetailPage() {
   const reorderMutation = useMutation({
     mutationFn: (orderedIds: string[]) =>
       itemsApi.reorderItems(listId, orderedIds),
+    meta: { syncTrack: true, syncLabel: 'reorder' },
     onSuccess: (data) => {
       queryClient.setQueryData(['lists', listId, 'items'], data.items);
       void queryClient.invalidateQueries({ queryKey: ['lists', listId] });
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
       setCheckError(null);
     },
-    onError: () => {
-      setCheckError('Could not save item order. Try again.');
-      void queryClient.invalidateQueries({
-        queryKey: ['lists', listId, 'items'],
+    onError: (err) => {
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: [['lists', listId, 'items']],
+        setError: setCheckError,
+        fallback: 'Could not save item order. Try again.',
       });
     },
   });
@@ -324,11 +349,12 @@ export function ListDetailPage() {
       setQuickName('');
       quickNameRef.current?.focus();
     } catch (err) {
-      if (err instanceof ApiError) {
-        setQuickError(err.message);
-      } else {
-        setQuickError('Could not add item. Try again.');
-      }
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: listInvalidateKeys,
+        setError: setQuickError,
+        fallback: 'Could not add item. Try again.',
+      });
     }
   }
 
@@ -358,11 +384,12 @@ export function ListDetailPage() {
       rememberCategory(editCategoryId);
       setEditItem(null);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setEditError(err.message);
-      } else {
-        setEditError('Could not save item. Try again.');
-      }
+      handleWriteError(err, {
+        queryClient,
+        invalidateKeys: listInvalidateKeys,
+        setError: setEditError,
+        fallback: 'Could not save item. Try again.',
+      });
     }
   }
 
@@ -399,6 +426,12 @@ export function ListDetailPage() {
         ? `${itemCount} item${itemCount === 1 ? '' : 's'}`
         : `${uncheckedCount} left · ${checkedCount} checked · ${itemCount} total`;
 
+  const isRefetching =
+    (listQuery.isFetching || itemsQuery.isFetching || categoriesQuery.isFetching) &&
+    !pageLoading &&
+    listQuery.isSuccess &&
+    itemsQuery.isSuccess;
+
   return (
     <div className="page list-detail-page">
       <header className="app-header">
@@ -414,7 +447,15 @@ export function ListDetailPage() {
           {listQuery.data?.description && (
             <p className="muted small">{listQuery.data.description}</p>
           )}
-          <p className="muted small">Signed in as {user?.email}</p>
+          <p className="muted small">
+            Signed in as {user?.email}
+            {isRefetching && (
+              <span className="sync-inline" role="status">
+                {' '}
+                · Refreshing…
+              </span>
+            )}
+          </p>
         </div>
         <div className="header-actions">
           <Link to="/categories" className="btn secondary">
@@ -433,22 +474,36 @@ export function ListDetailPage() {
       )}
 
       {pageError && !pageLoading && (
-        <div className="card shell" role="alert">
+        <div className="card shell error-state" role="alert">
+          <h3 className="error-state-title">Could not load this list</h3>
           <p className="error">
             {(listQuery.error instanceof ApiError && listQuery.error.message) ||
               (itemsQuery.error instanceof ApiError && itemsQuery.error.message) ||
               (categoriesQuery.error instanceof ApiError &&
                 categoriesQuery.error.message) ||
-              'Could not load this list.'}
+              'Something went wrong while loading this list.'}
           </p>
-          <p>
-            <Link to="/">Back to all lists</Link>
-          </p>
+          <div className="error-state-actions">
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => {
+                void listQuery.refetch();
+                void itemsQuery.refetch();
+                void categoriesQuery.refetch();
+              }}
+            >
+              Retry
+            </button>
+            <Link to="/" className="btn secondary">
+              Back to all lists
+            </Link>
+          </div>
         </div>
       )}
 
       {listQuery.isSuccess && itemsQuery.isSuccess && categoriesQuery.isSuccess && (
-        <>
+        <div id="main-content" tabIndex={-1}>
           <form className="quick-add card shell" onSubmit={(e) => void onQuickAdd(e)}>
             <label className="quick-add-name" htmlFor={quickNameId}>
               <span className="sr-only">Item name</span>
@@ -528,9 +583,19 @@ export function ListDetailPage() {
             </div>
 
             {checkError && (
-              <p className="error shell" role="alert">
-                {checkError}
-              </p>
+              <div className="sync-error-banner shell" role="alert">
+                <p className="error">{checkError}</p>
+                <button
+                  type="button"
+                  className="btn secondary btn-sm"
+                  onClick={() => {
+                    setCheckError(null);
+                    void itemsQuery.refetch();
+                  }}
+                >
+                  Refresh list
+                </button>
+              </div>
             )}
 
             {itemCount === 0 ? (
@@ -595,7 +660,7 @@ export function ListDetailPage() {
               </div>
             )}
           </main>
-        </>
+        </div>
       )}
 
       {editItem && (

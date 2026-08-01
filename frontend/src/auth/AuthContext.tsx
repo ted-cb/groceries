@@ -21,6 +21,18 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Drop cached app data that belongs to another (or prior) session. */
+function clearUserDataCaches(
+  queryClient: ReturnType<typeof useQueryClient>
+) {
+  queryClient.removeQueries({
+    predicate: (query) => {
+      const root = query.queryKey[0];
+      return root === 'lists' || root === 'categories';
+    },
+  });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
@@ -38,13 +50,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     retry: false,
+    // Session check is cheap; keep fresh enough without blocking every navigation.
     staleTime: 60_000,
+    refetchOnWindowFocus: true,
   });
 
   const loginMutation = useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       authApi.login(email, password),
+    meta: { syncTrack: false },
     onSuccess: (data) => {
+      // FR-S-03 / FR-S-04: after login, next views must fetch latest server data.
+      clearUserDataCaches(queryClient);
       queryClient.setQueryData(['auth', 'me'], data.user);
     },
   });
@@ -52,13 +69,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const registerMutation = useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       authApi.register(email, password),
+    meta: { syncTrack: false },
     onSuccess: (data) => {
+      clearUserDataCaches(queryClient);
       queryClient.setQueryData(['auth', 'me'], data.user);
     },
   });
 
   const logoutMutation = useMutation({
     mutationFn: () => authApi.logout(),
+    meta: { syncTrack: false },
     onSuccess: () => {
       queryClient.setQueryData(['auth', 'me'], null);
       queryClient.clear();
