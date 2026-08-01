@@ -30,6 +30,7 @@ const updateItemSchema = z
       .optional()
       .nullable(),
     isChecked: z.boolean().optional(),
+    sortOrder: z.number().int().min(0).optional(),
   })
   .refine(
     (data) =>
@@ -37,7 +38,8 @@ const updateItemSchema = z
       data.categoryId !== undefined ||
       data.quantity !== undefined ||
       data.note !== undefined ||
-      data.isChecked !== undefined,
+      data.isChecked !== undefined ||
+      data.sortOrder !== undefined,
     { message: 'Provide at least one field to update' }
   );
 
@@ -138,6 +140,7 @@ itemsRouter.patch('/:itemId', async (req, res, next) => {
       note?: string | null;
       isChecked?: boolean;
       checkedAt?: Date | null;
+      sortOrder?: number;
     } = {};
 
     if (parsed.data.name !== undefined) {
@@ -161,6 +164,9 @@ itemsRouter.patch('/:itemId', async (req, res, next) => {
     if (parsed.data.isChecked !== undefined) {
       data.isChecked = parsed.data.isChecked;
       data.checkedAt = parsed.data.isChecked ? new Date() : null;
+    }
+    if (parsed.data.sortOrder !== undefined) {
+      data.sortOrder = parsed.data.sortOrder;
     }
 
     const item = await prisma.item.update({

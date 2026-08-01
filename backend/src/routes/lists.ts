@@ -291,6 +291,83 @@ listsRouter.post('/:listId/items', async (req, res, next) => {
   }
 });
 
+const reorderItemsSchema = z.object({
+  orderedIds: z
+    .array(z.string().uuid())
+    .min(1, 'orderedIds must not be empty'),
+});
+
+/**
+ * PUT /api/lists/:listId/items/reorder — set sortOrder for a subset of items.
+ * Body: { orderedIds: string[] } — all IDs must belong to this list.
+ * Typically used for items within one category (same checked state).
+ * Items not listed keep their existing sortOrder.
+ */
+listsRouter.put('/:listId/items/reorder', async (req, res, next) => {
+  try {
+    const listId = z.string().uuid().safeParse(req.params.listId);
+    if (!listId.success) {
+      throw validationError('Invalid list id');
+    }
+
+    const parsed = reorderItemsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw validationError('Invalid reorder data', parsed.error.errors);
+    }
+
+    await findOwnedList(listId.data, req.user!.id);
+
+    const { orderedIds } = parsed.data;
+    const uniqueIds = new Set(orderedIds);
+    if (uniqueIds.size !== orderedIds.length) {
+      throw validationError('orderedIds must not contain duplicates');
+    }
+
+    const owned = await prisma.item.findMany({
+      where: {
+        listId: listId.data,
+        id: { in: orderedIds },
+      },
+      select: { id: true },
+    });
+
+    if (owned.length !== orderedIds.length) {
+      throw validationError(
+        'orderedIds must only include items from this list'
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await Promise.all(
+        orderedIds.map((id, index) =>
+          tx.item.update({
+            where: { id },
+            data: { sortOrder: index },
+          })
+        )
+      );
+      await tx.list.update({
+        where: { id: listId.data },
+        data: { updatedAt: new Date() },
+      });
+    });
+
+    const items = await prisma.item.findMany({
+      where: { listId: listId.data },
+      orderBy: [
+        { category: { sortOrder: 'asc' } },
+        { sortOrder: 'asc' },
+        { createdAt: 'asc' },
+      ],
+      include: itemInclude,
+    });
+
+    res.json({ items: items.map(serializeItem) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** POST /api/lists/:listId/items/clear-checked — delete all checked items */
 listsRouter.post('/:listId/items/clear-checked', async (req, res, next) => {
   try {

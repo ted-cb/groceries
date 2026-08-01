@@ -1,14 +1,109 @@
 import { FormEvent, useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  closestCenter,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 import * as categoriesApi from '../api/categories';
 import type { Category } from '../api/categories';
+import { DragHandle } from '../components/DragHandle';
+import { arrayMove } from '../dnd/arrayMove';
+import { useListSensors } from '../dnd/sensors';
+
+function SortableCategoryRow({
+  category,
+  canDelete,
+  onRename,
+  onDelete,
+}: {
+  category: Category;
+  canDelete: boolean;
+  onRename: (c: Category) => void;
+  onDelete: (c: Category) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: category.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={
+        isDragging
+          ? 'category-row card category-row-dragging'
+          : 'category-row card'
+      }
+    >
+      <DragHandle
+        attributes={attributes}
+        listeners={listeners}
+        label={`Drag to reorder ${category.name}`}
+      />
+      <div className="category-row-body">
+        <span className="category-name">
+          {category.name}
+          {category.isDefault && (
+            <span className="default-pill">Default</span>
+          )}
+        </span>
+        <span className="muted small">
+          {category.itemCount ?? 0} item
+          {(category.itemCount ?? 0) === 1 ? '' : 's'} across lists
+        </span>
+      </div>
+      <div className="category-row-actions">
+        <button
+          type="button"
+          className="btn secondary btn-sm"
+          onClick={() => onRename(category)}
+        >
+          Rename
+        </button>
+        <button
+          type="button"
+          className="btn danger-outline btn-sm"
+          disabled={!canDelete}
+          title={
+            canDelete
+              ? 'Delete category'
+              : 'Cannot delete the last category'
+          }
+          onClick={() => onDelete(category)}
+        >
+          Delete
+        </button>
+      </div>
+    </li>
+  );
+}
 
 export function CategoriesPage() {
   const { user, logout } = useAuth();
   const queryClient = useQueryClient();
+  const sensors = useListSensors();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
@@ -26,6 +121,9 @@ export function CategoriesPage() {
   const [reassignToId, setReassignToId] = useState('');
   const reassignId = useId();
 
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [reorderError, setReorderError] = useState<string | null>(null);
+
   const categoriesQuery = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
@@ -35,6 +133,9 @@ export function CategoriesPage() {
   });
 
   const categories = categoriesQuery.data ?? [];
+  const activeCategory = activeId
+    ? categories.find((c) => c.id === activeId) ?? null
+    : null;
 
   const createMutation = useMutation({
     mutationFn: categoriesApi.createCategory,
@@ -48,7 +149,6 @@ export function CategoriesPage() {
       categoriesApi.updateCategory(id, { name }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['categories'] });
-      // Item embeds category name — refresh open lists
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
     },
   });
@@ -59,6 +159,11 @@ export function CategoriesPage() {
     onSuccess: (data) => {
       queryClient.setQueryData(['categories'], data.categories);
       void queryClient.invalidateQueries({ queryKey: ['lists'] });
+      setReorderError(null);
+    },
+    onError: () => {
+      setReorderError('Could not save category order. Try again.');
+      void queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
   });
 
@@ -140,27 +245,30 @@ export function CategoriesPage() {
     }
   }
 
-  async function moveCategory(categoryId: string, direction: -1 | 1) {
-    const index = categories.findIndex((c) => c.id === categoryId);
-    if (index < 0) return;
-    const next = index + direction;
-    if (next < 0 || next >= categories.length) return;
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+    setReorderError(null);
+  }
 
-    const ordered = categories.map((c) => c.id);
-    const [moved] = ordered.splice(index, 1);
-    ordered.splice(next, 0, moved);
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-    // Optimistic local order for snappy UI
-    const reordered = ordered
-      .map((id) => categories.find((c) => c.id === id)!)
-      .map((c, i) => ({ ...c, sortOrder: i }));
+    const oldIndex = categories.findIndex((c) => c.id === active.id);
+    const newIndex = categories.findIndex((c) => c.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const reordered = arrayMove(categories, oldIndex, newIndex).map(
+      (c, i) => ({ ...c, sortOrder: i })
+    );
+    const orderedIds = reordered.map((c) => c.id);
     queryClient.setQueryData(['categories'], reordered);
+    reorderMutation.mutate(orderedIds);
+  }
 
-    try {
-      await reorderMutation.mutateAsync(ordered);
-    } catch {
-      void queryClient.invalidateQueries({ queryKey: ['categories'] });
-    }
+  function handleDragCancel() {
+    setActiveId(null);
   }
 
   async function confirmDelete() {
@@ -235,73 +343,59 @@ export function CategoriesPage() {
           </div>
         )}
 
+        {reorderError && (
+          <p className="error shell" role="alert">
+            {reorderError}
+          </p>
+        )}
+
         {categoriesQuery.isSuccess && (
-          <ul className="category-rows">
-            {categories.map((category, index) => (
-              <li key={category.id} className="category-row card">
-                <div className="category-row-body">
-                  <span className="category-name">
-                    {category.name}
-                    {category.isDefault && (
-                      <span className="default-pill">Default</span>
-                    )}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <SortableContext
+              items={categories.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="category-rows">
+                {categories.map((category) => (
+                  <SortableCategoryRow
+                    key={category.id}
+                    category={category}
+                    canDelete={canDelete}
+                    onRename={setRenameTarget}
+                    onDelete={setDeleteTarget}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+            <DragOverlay>
+              {activeCategory ? (
+                <div className="category-row card drag-overlay-card">
+                  <span className="drag-handle drag-handle-static" aria-hidden>
+                    <span className="drag-handle-icon">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
                   </span>
-                  <span className="muted small">
-                    {category.itemCount ?? 0} item
-                    {(category.itemCount ?? 0) === 1 ? '' : 's'} across lists
-                  </span>
+                  <div className="category-row-body">
+                    <span className="category-name">{activeCategory.name}</span>
+                  </div>
                 </div>
-                <div className="category-row-actions">
-                  <button
-                    type="button"
-                    className="btn secondary btn-sm"
-                    aria-label={`Move ${category.name} up`}
-                    disabled={index === 0 || reorderMutation.isPending}
-                    onClick={() => void moveCategory(category.id, -1)}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    className="btn secondary btn-sm"
-                    aria-label={`Move ${category.name} down`}
-                    disabled={
-                      index === categories.length - 1 ||
-                      reorderMutation.isPending
-                    }
-                    onClick={() => void moveCategory(category.id, 1)}
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    className="btn secondary btn-sm"
-                    onClick={() => setRenameTarget(category)}
-                  >
-                    Rename
-                  </button>
-                  <button
-                    type="button"
-                    className="btn danger-outline btn-sm"
-                    disabled={!canDelete}
-                    title={
-                      canDelete
-                        ? 'Delete category'
-                        : 'Cannot delete the last category'
-                    }
-                    onClick={() => setDeleteTarget(category)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         )}
 
         <p className="muted small shell">
-          Order here controls how categories appear when grouping items on a
-          list. Drag-and-drop arrives in a later phase; use ↑ / ↓ for now.
+          Drag the handle (⠿) to match your store layout. Order controls how
+          categories appear when grouping items on a list. Keyboard: focus a
+          handle, then use arrow keys.
         </p>
       </main>
 

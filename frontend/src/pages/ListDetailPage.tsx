@@ -8,6 +8,7 @@ import * as itemsApi from '../api/items';
 import type { GroceryItem } from '../api/items';
 import * as categoriesApi from '../api/categories';
 import type { Category } from '../api/categories';
+import { SortableItemGroup } from '../components/SortableItemGroup';
 
 const LAST_CATEGORY_KEY = 'grocery-last-category-id';
 
@@ -195,6 +196,23 @@ export function ListDetailPage() {
     },
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: (orderedIds: string[]) =>
+      itemsApi.reorderItems(listId, orderedIds),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['lists', listId, 'items'], data.items);
+      void queryClient.invalidateQueries({ queryKey: ['lists', listId] });
+      void queryClient.invalidateQueries({ queryKey: ['lists'] });
+      setCheckError(null);
+    },
+    onError: () => {
+      setCheckError('Could not save item order. Try again.');
+      void queryClient.invalidateQueries({
+        queryKey: ['lists', listId, 'items'],
+      });
+    },
+  });
+
   const items = itemsQuery.data ?? [];
   const itemCount = items.length;
   const checkedCount = useMemo(
@@ -246,6 +264,8 @@ export function ListDetailPage() {
 
     return orderedIds.map((categoryId) => {
       const groupItems = sortItems(byCategory.get(categoryId) ?? []);
+      const unchecked = groupItems.filter((i) => !i.isChecked);
+      const checked = groupItems.filter((i) => i.isChecked);
       const fromCategories = categories.find((c) => c.id === categoryId);
       const name =
         fromCategories?.name ?? groupItems[0]?.category.name ?? 'Category';
@@ -256,9 +276,29 @@ export function ListDetailPage() {
         name,
         sortOrder,
         items: groupItems,
+        unchecked,
+        checked,
       };
     });
   }, [items, categories, hideChecked]);
+
+  function applyLocalItemOrder(orderedIds: string[]) {
+    const orderMap = new Map(orderedIds.map((id, index) => [id, index]));
+    queryClient.setQueryData<GroceryItem[]>(
+      ['lists', listId, 'items'],
+      (old) =>
+        (old ?? []).map((item) =>
+          orderMap.has(item.id)
+            ? { ...item, sortOrder: orderMap.get(item.id)! }
+            : item
+        )
+    );
+  }
+
+  function onItemsReorder(orderedIds: string[]) {
+    applyLocalItemOrder(orderedIds);
+    reorderMutation.mutate(orderedIds);
+  }
 
   async function onQuickAdd(e: FormEvent) {
     e.preventDefault();
@@ -532,72 +572,24 @@ export function ListDetailPage() {
                         {group.items.length}
                       </span>
                     </h3>
-                    <ul className="item-rows">
-                      {group.items.map((item) => (
-                        <li
-                          key={item.id}
-                          className={
-                            item.isChecked
-                              ? 'item-row card item-row-checked'
-                              : 'item-row card'
-                          }
-                        >
-                          <label className="item-check">
-                            <input
-                              type="checkbox"
-                              checked={item.isChecked}
-                              onChange={() => toggleChecked(item)}
-                              aria-label={
-                                item.isChecked
-                                  ? `Uncheck ${item.name}`
-                                  : `Check off ${item.name}`
-                              }
-                            />
-                            <span className="item-check-box" aria-hidden />
-                          </label>
-                          <button
-                            type="button"
-                            className="item-row-body item-row-toggle"
-                            onClick={() => toggleChecked(item)}
-                            aria-pressed={item.isChecked}
-                            aria-label={
-                              item.isChecked
-                                ? `Uncheck ${item.name}`
-                                : `Check off ${item.name}`
-                            }
-                          >
-                            <span className="item-name">{item.name}</span>
-                            {(item.quantity || item.note) && (
-                              <span className="item-meta muted small">
-                                {item.quantity && <span>{item.quantity}</span>}
-                                {item.quantity && item.note && (
-                                  <span className="meta-sep" aria-hidden>
-                                    ·
-                                  </span>
-                                )}
-                                {item.note && <span>{item.note}</span>}
-                              </span>
-                            )}
-                          </button>
-                          <div className="item-row-actions">
-                            <button
-                              type="button"
-                              className="btn secondary btn-sm"
-                              onClick={() => setEditItem(item)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              className="btn danger-outline btn-sm"
-                              onClick={() => setDeleteTarget(item)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="category-item-stacks">
+                      <SortableItemGroup
+                        items={group.unchecked}
+                        onReorder={onItemsReorder}
+                        onToggleChecked={toggleChecked}
+                        onEdit={setEditItem}
+                        onDelete={setDeleteTarget}
+                      />
+                      {!hideChecked && (
+                        <SortableItemGroup
+                          items={group.checked}
+                          onReorder={onItemsReorder}
+                          onToggleChecked={toggleChecked}
+                          onEdit={setEditItem}
+                          onDelete={setDeleteTarget}
+                        />
+                      )}
+                    </div>
                   </section>
                 ))}
               </div>

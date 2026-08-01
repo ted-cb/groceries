@@ -42,6 +42,7 @@ export type UpdateItemInput = {
   quantity?: string | null;
   note?: string | null;
   isChecked?: boolean;
+  sortOrder?: number;
 };
 
 export type ClearCheckedResponse = {
@@ -77,4 +78,12 @@ export function clearCheckedItems(listId: string) {
     `/api/lists/${listId}/items/clear-checked`,
     { method: 'POST' }
   );
+}
+
+/** Reorder a subset of items (typically one category / checked group). */
+export function reorderItems(listId: string, orderedIds: string[]) {
+  return apiFetch<ItemsResponse>(`/api/lists/${listId}/items/reorder`, {
+    method: 'PUT',
+    body: JSON.stringify({ orderedIds }),
+  });
 }
