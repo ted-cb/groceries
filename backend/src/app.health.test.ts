@@ -22,4 +22,10 @@ describe('health and ping', () => {
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
+
+  it('item memory search requires authentication', async () => {
+    const res = await request(app).get('/api/item-memories?q=milk');
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+  });
 });

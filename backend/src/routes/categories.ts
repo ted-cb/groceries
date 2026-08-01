@@ -291,6 +291,11 @@ categoriesRouter.delete('/:categoryId', async (req, res, next) => {
         where: { categoryId: existing.id },
         data: { categoryId: target.id },
       });
+      // Keep item-memory FKs valid after the category row is removed.
+      await tx.itemMemory.updateMany({
+        where: { categoryId: existing.id, userId },
+        data: { categoryId: target.id },
+      });
       await tx.category.delete({ where: { id: existing.id } });
     });
 

@@ -8,14 +8,15 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
-  email        String     @unique
-  passwordHash String     @map("password_hash")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
+  id           String       @id @default(uuid()) @db.Uuid
+  email        String       @unique
+  passwordHash String       @map("password_hash")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
   sessions     Session[]
   categories   Category[]
   lists        List[]
+  itemMemories ItemMemory[]
 
   @@map("users")
 }
@@ -35,15 +36,16 @@ model Session {
 // Included now so registration can seed defaults (Phase 1).
 // Full category CRUD lands in a later phase.
 model Category {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  name      String
-  sortOrder Int      @map("sort_order")
-  isDefault Boolean  @default(false) @map("is_default")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     Item[]
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  name         String
+  sortOrder    Int          @map("sort_order")
+  isDefault    Boolean      @default(false) @map("is_default")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items        Item[]
+  itemMemories ItemMemory[]
 
   @@unique([userId, name])
   @@index([userId, sortOrder])
@@ -84,4 +86,25 @@ model Item {
   @@index([listId])
   @@index([listId, categoryId, sortOrder])
   @@map("items")
+}
+
+// Per-user catalog of item names → categories for autocomplete / smart add (Phase A+).
+// Survives list item check-off/delete so suggestions remain available.
+model ItemMemory {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  name       String
+  nameKey    String   @map("name_key")
+  categoryId String   @map("category_id") @db.Uuid
+  useCount   Int      @default(1) @map("use_count")
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([userId, nameKey])
+  @@index([userId, lastUsedAt])
+  @@index([userId, nameKey])
+  @@map("item_memories")
 }

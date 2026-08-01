@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { notFound, validationError } from '../lib/errors';
+import { upsertItemMemory } from '../lib/itemMemory';
 import { requireAuth } from '../middleware/auth';
 
 export const itemsRouter = Router();
@@ -169,13 +170,31 @@ itemsRouter.patch('/:itemId', async (req, res, next) => {
       data.sortOrder = parsed.data.sortOrder;
     }
 
-    const item = await prisma.item.update({
-      where: { id: itemId.data },
-      data,
-      include: itemInclude,
-    });
+    const nameOrCategoryChanged =
+      parsed.data.name !== undefined || parsed.data.categoryId !== undefined;
 
-    await touchList(existing.listId);
+    const item = await prisma.$transaction(async (tx) => {
+      const updated = await tx.item.update({
+        where: { id: itemId.data },
+        data,
+        include: itemInclude,
+      });
+
+      if (nameOrCategoryChanged) {
+        await upsertItemMemory(tx, {
+          userId: req.user!.id,
+          name: updated.name,
+          categoryId: updated.categoryId,
+        });
+      }
+
+      await tx.list.update({
+        where: { id: existing.listId },
+        data: { updatedAt: new Date() },
+      });
+
+      return updated;
+    });
 
     res.json({ item: serializeItem(item) });
   } catch (err) {

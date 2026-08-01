@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { notFound, validationError } from '../lib/errors';
+import { upsertItemMemory } from '../lib/itemMemory';
 import { requireAuth } from '../middleware/auth';
 
 export const listsRouter = Router();
@@ -281,6 +282,11 @@ listsRouter.post('/:listId/items', async (req, res, next) => {
       await tx.list.update({
         where: { id: listId.data },
         data: { updatedAt: new Date() },
+      });
+      await upsertItemMemory(tx, {
+        userId: req.user!.id,
+        name: created.name,
+        categoryId: created.categoryId,
       });
       return created;
     });

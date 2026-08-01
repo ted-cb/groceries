@@ -71,6 +71,8 @@ cd frontend && npm test
 | Sync status, write retries, conflict refresh | Done (Phase 7) |
 | Accessibility, empty/error polish, responsive | Done (Phase 8) |
 | Critical-flow unit/API tests | Done (Phase 8) |
+| Item memory (name → category catalog) | Done (Phase A) |
+| Quick-add autocomplete | Next (Phase B) |
 
 ## API surface (auth required unless noted)
 
@@ -102,6 +104,14 @@ cd frontend && npm test
 | PUT | `/api/categories/reorder` | Set full order (`orderedIds`) |
 | PATCH | `/api/categories/:categoryId` | Rename / set sortOrder |
 | DELETE | `/api/categories/:categoryId` | Delete; body `{ reassignToCategoryId }` |
+
+### Item memories
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/item-memories?q=&limit=` | Search remembered item names for the current user |
+
+Memories are upserted when items are created or when name/category is edited. Category delete reassigns memory rows to the replacement category.
 
 ## Deploy notes (session cookies)
 

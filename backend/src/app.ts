@@ -5,6 +5,7 @@ import { authRouter } from './routes/auth';
 import { listsRouter } from './routes/lists';
 import { itemsRouter } from './routes/items';
 import { categoriesRouter } from './routes/categories';
+import { itemMemoriesRouter } from './routes/itemMemories';
 import { errorHandler } from './middleware/errorHandler';
 
 export function createApp() {
@@ -39,6 +40,7 @@ export function createApp() {
   app.use('/api/lists', listsRouter);
   app.use('/api/items', itemsRouter);
   app.use('/api/categories', categoriesRouter);
+  app.use('/api/item-memories', itemMemoriesRouter);
 
   app.use(errorHandler);
 
