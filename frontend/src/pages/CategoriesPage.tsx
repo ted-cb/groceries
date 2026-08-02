@@ -19,6 +19,8 @@ import { ApiError } from '../api/client';
 import * as categoriesApi from '../api/categories';
 import type { Category } from '../api/categories';
 import { DragHandle } from '../components/DragHandle';
+import { IconButton } from '../components/IconButton';
+import { IconPencil, IconPlus, IconTrash } from '../components/icons';
 import { Modal } from '../components/Modal';
 import { arrayMove } from '../dnd/arrayMove';
 import { useListSensors } from '../dnd/sensors';
@@ -77,26 +79,26 @@ function SortableCategoryRow({
         </span>
       </div>
       <div className="category-row-actions">
-        <button
-          type="button"
-          className="btn secondary btn-sm"
+        <IconButton
+          label={`Rename ${category.name}`}
+          size="sm"
           onClick={() => onRename(category)}
         >
-          Rename
-        </button>
-        <button
-          type="button"
-          className="btn danger-outline btn-sm"
-          disabled={!canDelete}
-          title={
+          <IconPencil />
+        </IconButton>
+        <IconButton
+          label={
             canDelete
-              ? 'Delete category'
+              ? `Delete ${category.name}`
               : 'Cannot delete the last category'
           }
+          size="sm"
+          variant="danger"
+          disabled={!canDelete}
           onClick={() => onDelete(category)}
         >
-          Delete
-        </button>
+          <IconTrash />
+        </IconButton>
       </div>
     </li>
   );
@@ -344,13 +346,13 @@ export function CategoriesPage() {
       <main id="main-content" className="lists-main" tabIndex={-1}>
         <div className="lists-toolbar">
           <h2 className="lists-heading">Your categories</h2>
-          <button
-            type="button"
-            className="btn primary"
+          <IconButton
+            label="New category"
+            variant="primary"
             onClick={() => setCreateOpen(true)}
           >
-            New category
-          </button>
+            <IconPlus />
+          </IconButton>
         </div>
 
         {categoriesQuery.isLoading && (

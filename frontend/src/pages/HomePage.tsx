@@ -5,6 +5,8 @@ import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 import * as listsApi from '../api/lists';
 import type { GroceryList } from '../api/lists';
+import { IconButton } from '../components/IconButton';
+import { IconPencil, IconPlus, IconTrash } from '../components/icons';
 import { Modal } from '../components/Modal';
 import { handleWriteError } from '../sync/handleWriteError';
 
@@ -214,9 +216,13 @@ export function HomePage() {
       <main id="main-content" className="lists-main" tabIndex={-1}>
         <div className="lists-toolbar">
           <h2 className="lists-heading">Your lists</h2>
-          <button type="button" className="btn primary" onClick={openCreate}>
-            New list
-          </button>
+          <IconButton
+            label="New list"
+            variant="primary"
+            onClick={openCreate}
+          >
+            <IconPlus />
+          </IconButton>
         </div>
 
         {listsQuery.isLoading && (
@@ -274,20 +280,21 @@ export function HomePage() {
                   </span>
                 </Link>
                 <div className="list-card-actions">
-                  <button
-                    type="button"
-                    className="btn secondary btn-sm"
+                  <IconButton
+                    label={`Rename ${list.name}`}
+                    size="sm"
                     onClick={() => openRename(list)}
                   >
-                    Rename
-                  </button>
-                  <button
-                    type="button"
-                    className="btn danger-outline btn-sm"
+                    <IconPencil />
+                  </IconButton>
+                  <IconButton
+                    label={`Delete ${list.name}`}
+                    size="sm"
+                    variant="danger"
                     onClick={() => setDeleteTarget(list)}
                   >
-                    Delete
-                  </button>
+                    <IconTrash />
+                  </IconButton>
                 </div>
               </li>
             ))}

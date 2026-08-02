@@ -14,6 +14,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { GroceryItem } from '../api/items';
 import { DragHandle } from './DragHandle';
+import { IconButton } from './IconButton';
+import { IconPencil, IconTrash } from './icons';
 import { arrayMove } from '../dnd/arrayMove';
 import { useListSensors } from '../dnd/sensors';
 
@@ -55,6 +57,8 @@ const SortableItemRow = memo(function SortableItemRow({
     .filter(Boolean)
     .join(' ');
 
+  const metaParts = [item.quantity, item.note].filter(Boolean);
+
   return (
     <li ref={setNodeRef} style={style} className={rowClass}>
       <DragHandle
@@ -78,33 +82,31 @@ const SortableItemRow = memo(function SortableItemRow({
         aria-label={`Check off ${item.name}`}
       >
         <span className="item-name">{item.name}</span>
-        {(item.quantity || item.note) && (
-          <span className="item-meta muted small">
-            {item.quantity && <span>{item.quantity}</span>}
-            {item.quantity && item.note && (
-              <span className="meta-sep" aria-hidden>
-                ·
-              </span>
-            )}
-            {item.note && <span>{item.note}</span>}
+        {metaParts.length > 0 && (
+          <span className="item-meta muted">
+            <span className="meta-sep" aria-hidden>
+              ·
+            </span>
+            {metaParts.join(' · ')}
           </span>
         )}
       </button>
       <div className="item-row-actions">
-        <button
-          type="button"
-          className="btn secondary btn-sm"
+        <IconButton
+          label={`Edit ${item.name}`}
+          size="sm"
           onClick={() => onEdit(item)}
         >
-          Edit
-        </button>
-        <button
-          type="button"
-          className="btn danger-outline btn-sm"
+          <IconPencil />
+        </IconButton>
+        <IconButton
+          label={`Delete ${item.name}`}
+          size="sm"
+          variant="danger"
           onClick={() => onDelete(item)}
         >
-          Delete
-        </button>
+          <IconTrash />
+        </IconButton>
       </div>
     </li>
   );

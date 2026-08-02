@@ -248,14 +248,14 @@ input:focus {
 
 .list-card {
   display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: 0.75rem;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 0.85rem 1rem;
+  padding: 0.55rem 0.65rem;
 }
 
 .list-card-main {
@@ -304,15 +304,86 @@ input:focus {
 
 .list-card-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.2rem;
+  flex: 0 0 auto;
 }
 
 .btn-sm {
   min-height: 40px;
   padding: 0.45rem 0.75rem;
   font-size: 0.9rem;
+}
+
+/* Compact icon-only actions */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.icon-btn-md {
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+}
+
+.icon-btn-sm {
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: #e8f0ea;
+  color: var(--primary);
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 45%, white);
+  outline-offset: 2px;
+}
+
+.icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.icon-btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.icon-btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  color: #fff;
+}
+
+.icon-btn-danger {
+  color: var(--danger);
+}
+
+.icon-btn-danger:hover:not(:disabled) {
+  background: #fef3f2;
+  color: var(--danger);
+}
+
+.icon-btn svg {
+  display: block;
+  flex-shrink: 0;
 }
 
 .btn.danger {
@@ -643,17 +714,17 @@ select:focus {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.35rem;
 }
 
 .item-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 0.65rem;
-  padding: 0.75rem 0.85rem;
+  gap: 0.15rem 0.25rem;
+  padding: 0.3rem 0.4rem;
   touch-action: pan-y;
+  min-height: 2.75rem;
 }
 
 .item-row-dragging {
@@ -677,15 +748,16 @@ select:focus {
   gap: 0.6rem;
 }
 
-/* Drag handles — large enough for thumbs on phone */
+/* Drag handles — compact but still tappable */
 .drag-handle {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.75rem;
-  min-height: 2.75rem;
-  margin: -0.35rem 0 -0.35rem -0.25rem;
+  width: 2rem;
+  min-width: 2rem;
+  min-height: 2.5rem;
+  margin: 0;
   padding: 0;
   border: none;
   border-radius: 8px;
@@ -726,8 +798,8 @@ select:focus {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 3px;
-  width: 1rem;
+  gap: 2px;
+  width: 0.85rem;
 }
 
 .drag-handle-icon span {
@@ -760,16 +832,16 @@ select:focus {
   text-decoration: line-through;
 }
 
-/* Custom checkbox: large touch target; state not color-only */
+/* Custom checkbox: compact row, still easy to tap */
 .item-check {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin: -0.35rem 0 -0.35rem -0.35rem;
+  width: 2.25rem;
+  height: 2.5rem;
+  margin: 0;
   cursor: pointer;
 }
 
@@ -783,10 +855,10 @@ select:focus {
 
 .item-check-box {
   display: block;
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.15rem;
+  height: 1.15rem;
   border: 2px solid var(--border);
-  border-radius: 6px;
+  border-radius: 5px;
   background: #fff;
   box-shadow: inset 0 1px 2px rgba(26, 46, 28, 0.06);
   transition:
@@ -807,32 +879,37 @@ select:focus {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5 6.5 11.5 12.5 4.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 0.95rem;
+  background-size: 0.85rem;
 }
 
 .item-check:hover .item-check-box {
   border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
 }
 
+/* Single-line item content: name · qty · note */
 .item-row-body {
-  flex: 1 1 10rem;
+  flex: 1 1 auto;
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.35rem;
   min-width: 0;
+  overflow: hidden;
 }
 
 button.item-row-toggle {
   appearance: none;
   background: transparent;
   border: none;
-  padding: 0.15rem 0;
+  padding: 0.2rem 0.15rem;
   margin: 0;
   text-align: left;
   cursor: pointer;
   color: inherit;
   font: inherit;
   border-radius: 6px;
+  min-width: 0;
 }
 
 button.item-row-toggle:focus-visible {
@@ -842,14 +919,25 @@ button.item-row-toggle:focus-visible {
 
 .item-name {
   font-weight: 700;
-  font-size: 1.02rem;
+  font-size: 0.95rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .item-meta {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .category-badge {
@@ -864,28 +952,35 @@ button.item-row-toggle:focus-visible {
 
 .item-row-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.05rem;
   margin-left: auto;
+  flex: 0 0 auto;
 }
 
 @media (max-width: 480px) {
   .item-row,
   .category-row {
-    padding: 0.7rem 0.7rem;
+    padding: 0.25rem 0.35rem;
+    gap: 0.1rem;
   }
 
-  .item-row-actions,
-  .category-row-actions {
-    width: 100%;
-    margin-left: 0;
-    padding-left: 2.4rem; /* align under content, past drag handle */
+  .item-name {
+    font-size: 0.9rem;
   }
 
-  .item-row-actions .btn,
-  .category-row-actions .btn {
-    flex: 1 1 auto;
-    min-width: 0;
+  .item-meta {
+    font-size: 0.75rem;
+    max-width: 40%;
+  }
+
+  .list-card {
+    padding: 0.45rem 0.5rem;
+  }
+
+  .list-card-name {
+    font-size: 0.98rem;
   }
 
   .quick-add {
@@ -893,6 +988,22 @@ button.item-row-toggle:focus-visible {
     top: 0;
     z-index: 10;
     background: var(--card);
+    padding: 0.55rem 0.65rem;
+  }
+
+  .quick-add.quick-add-smart {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .category-groups {
+    gap: 0.85rem;
+  }
+
+  .category-group-title {
+    margin-bottom: 0.35rem;
+    font-size: 0.85rem;
   }
 }
 
@@ -952,12 +1063,12 @@ button.item-row-toggle:focus-visible {
 
 .category-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 0.65rem;
-  padding: 0.75rem 0.85rem;
+  gap: 0.25rem 0.35rem;
+  padding: 0.4rem 0.5rem;
   touch-action: pan-y;
+  min-height: 2.75rem;
 }
 
 .category-row-body {
@@ -970,11 +1081,15 @@ button.item-row-toggle:focus-visible {
 
 .category-name {
   font-weight: 700;
-  font-size: 1.02rem;
+  font-size: 0.95rem;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .default-pill {
@@ -990,9 +1105,11 @@ button.item-row-toggle:focus-visible {
 
 .category-row-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  flex-wrap: nowrap;
+  gap: 0.05rem;
   align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 /* Sync status bar (Phase 7) */

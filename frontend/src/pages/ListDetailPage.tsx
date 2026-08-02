@@ -9,6 +9,8 @@ import type { GroceryItem } from '../api/items';
 import * as categoriesApi from '../api/categories';
 import * as itemMemoriesApi from '../api/itemMemories';
 import type { ItemMemory } from '../api/itemMemories';
+import { IconButton } from '../components/IconButton';
+import { IconPlus } from '../components/icons';
 import { ItemNameCombobox } from '../components/ItemNameCombobox';
 import { Modal } from '../components/Modal';
 import { SortableItemGroup } from '../components/SortableItemGroup';
@@ -558,9 +560,14 @@ export function ListDetailPage() {
                 }
               />
             </label>
-            <button
+            <IconButton
               type="submit"
-              className="btn primary"
+              label={
+                createMutation.isPending || resolvingCategory
+                  ? 'Adding item'
+                  : 'Add item'
+              }
+              variant="primary"
               disabled={
                 createMutation.isPending ||
                 resolvingCategory ||
@@ -568,10 +575,8 @@ export function ListDetailPage() {
                 Boolean(categoryPrompt)
               }
             >
-              {createMutation.isPending || resolvingCategory
-                ? 'Adding…'
-                : 'Add'}
-            </button>
+              <IconPlus />
+            </IconButton>
             {quickError && (
               <p className="error quick-add-error" role="alert">
                 {quickError}
