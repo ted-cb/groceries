@@ -27,8 +27,13 @@ jobs:
           DB_PORT: ${{ secrets.DB_PORT || vars.DB_PORT || '5432' }}
           # false unless the site is served over HTTPS to the browser
           COOKIE_SECURE: ${{ vars.COOKIE_SECURE || 'false' }}
+          # Unique per deploy: Actions run number + short commit SHA (shown on home screen)
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          VITE_APP_VERSION="${GITHUB_RUN_NUMBER}+${SHORT_SHA}"
           # No leading whitespace on keys — Compose would ignore or misread them.
           {
             echo "BACKEND_PORT=${BACKEND_PORT}"
@@ -39,6 +44,7 @@ jobs:
             echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}"
             echo "POSTGRES_DB=${POSTGRES_DB}"
             echo "COOKIE_SECURE=${COOKIE_SECURE}"
+            echo "VITE_APP_VERSION=${VITE_APP_VERSION}"
             if [ -n "${DATABASE_URL}" ]; then
               echo "DATABASE_URL=${DATABASE_URL}"
             else
@@ -48,6 +54,7 @@ jobs:
 
           echo "Wrote .env (secrets redacted):"
           sed -E 's/(PASSWORD|DATABASE_URL)=.*/\1=***/' .env
+          echo "Frontend version for this deploy: ${VITE_APP_VERSION}"
 
       - name: Build and deploy containers
         shell: bash

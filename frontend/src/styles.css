@@ -144,6 +144,12 @@ h2 {
   margin: 0.25rem 0 0;
 }
 
+.app-version {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
 .form {
   display: flex;
   flex-direction: column;

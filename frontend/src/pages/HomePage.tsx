@@ -8,6 +8,7 @@ import type { GroceryList } from '../api/lists';
 import { IconButton } from '../components/IconButton';
 import { IconPencil, IconPlus, IconTrash } from '../components/icons';
 import { Modal } from '../components/Modal';
+import { APP_VERSION } from '../lib/appVersion';
 import { handleWriteError } from '../sync/handleWriteError';
 
 function formatRelativeDate(iso: string): string {
@@ -201,6 +202,9 @@ export function HomePage() {
                 · Refreshing…
               </span>
             )}
+          </p>
+          <p className="muted small app-version" aria-label="App version">
+            Version {APP_VERSION}
           </p>
         </div>
         <div className="header-actions">

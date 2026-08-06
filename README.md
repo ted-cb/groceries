@@ -15,6 +15,19 @@ docker compose up --build
 - API health: http://localhost:4000/health (also proxied at http://localhost:3000/health)
 - Adminer: http://localhost:8081
 
+### App version (home screen)
+
+The lists home screen shows a **Version** line. On deploy to `main`, GitHub Actions sets
+`VITE_APP_VERSION` to `{run_number}+{short_sha}` (e.g. `12+56d59b9`) so each push gets a new build id.
+
+For a local Docker build with the current commit:
+
+```bash
+VITE_APP_VERSION="$(git rev-parse --short HEAD)" docker compose up -d --build frontend
+```
+
+Without that env var, the UI shows `dev`.
+
 ### Try categories
 
 1. Open http://localhost:3000 — log in or create an account
