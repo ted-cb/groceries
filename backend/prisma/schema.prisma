@@ -85,6 +85,7 @@ model Item {
 
   @@index([listId])
   @@index([listId, categoryId, sortOrder])
+  @@index([listId, isChecked, checkedAt])
   @@map("items")
 }
 

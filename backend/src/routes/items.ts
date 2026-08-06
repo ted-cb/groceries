@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { notFound, validationError } from '../lib/errors';
+import { pruneCheckedItemsOverCap } from '../lib/checkedItemsCap';
 import { upsertItemMemory } from '../lib/itemMemory';
 import { requireAuth } from '../middleware/auth';
 
@@ -172,6 +173,7 @@ itemsRouter.patch('/:itemId', async (req, res, next) => {
 
     const nameOrCategoryChanged =
       parsed.data.name !== undefined || parsed.data.categoryId !== undefined;
+    const becameChecked = parsed.data.isChecked === true;
 
     const item = await prisma.$transaction(async (tx) => {
       const updated = await tx.item.update({
@@ -179,6 +181,10 @@ itemsRouter.patch('/:itemId', async (req, res, next) => {
         data,
         include: itemInclude,
       });
+
+      if (becameChecked) {
+        await pruneCheckedItemsOverCap(tx, existing.listId);
+      }
 
       if (nameOrCategoryChanged) {
         await upsertItemMemory(tx, {

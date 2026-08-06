@@ -2,8 +2,39 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { notFound, validationError } from '../lib/errors';
-import { upsertItemMemory } from '../lib/itemMemory';
+import {
+  type DbClient,
+  normalizeItemNameKey,
+  upsertItemMemory,
+} from '../lib/itemMemory';
 import { requireAuth } from '../middleware/auth';
+
+/**
+ * When re-adding an item name, drop any checked (crossed-off) rows on this list
+ * that match the same normalized name so it only appears on the active list.
+ */
+async function removeMatchingCheckedItems(
+  db: DbClient,
+  listId: string,
+  name: string
+): Promise<number> {
+  const nameKey = normalizeItemNameKey(name);
+  if (!nameKey) return 0;
+
+  const checked = await db.item.findMany({
+    where: { listId, isChecked: true },
+    select: { id: true, name: true },
+  });
+
+  const ids = checked
+    .filter((row) => normalizeItemNameKey(row.name) === nameKey)
+    .map((row) => row.id);
+
+  if (ids.length === 0) return 0;
+
+  await db.item.deleteMany({ where: { id: { in: ids } } });
+  return ids.length;
+}
 
 export const listsRouter = Router();
 
@@ -268,6 +299,9 @@ listsRouter.post('/:listId/items', async (req, res, next) => {
         : parsed.data.note;
 
     const item = await prisma.$transaction(async (tx) => {
+      // Re-adding a name should not leave a crossed-off duplicate of the same item.
+      await removeMatchingCheckedItems(tx, listId.data, parsed.data.name);
+
       const created = await tx.item.create({
         data: {
           listId: listId.data,

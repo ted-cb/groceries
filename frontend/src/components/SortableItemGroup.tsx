@@ -22,20 +22,20 @@ import { useListSensors } from '../dnd/sensors';
 type SortableItemGroupProps = {
   items: GroceryItem[];
   onReorder: (orderedIds: string[]) => void;
-  /** Phase D: check-off removes the item from the list. */
-  onComplete: (item: GroceryItem) => void;
+  /** Check off moves the item to the crossed-off list. */
+  onCheck: (item: GroceryItem) => void;
   onEdit: (item: GroceryItem) => void;
   onDelete: (item: GroceryItem) => void;
 };
 
 const SortableItemRow = memo(function SortableItemRow({
   item,
-  onComplete,
+  onCheck,
   onEdit,
   onDelete,
 }: {
   item: GroceryItem;
-  onComplete: (item: GroceryItem) => void;
+  onCheck: (item: GroceryItem) => void;
   onEdit: (item: GroceryItem) => void;
   onDelete: (item: GroceryItem) => void;
 }) {
@@ -70,7 +70,7 @@ const SortableItemRow = memo(function SortableItemRow({
         <input
           type="checkbox"
           checked={false}
-          onChange={() => onComplete(item)}
+          onChange={() => onCheck(item)}
           aria-label={`Check off ${item.name}`}
         />
         <span className="item-check-box" aria-hidden />
@@ -78,7 +78,7 @@ const SortableItemRow = memo(function SortableItemRow({
       <button
         type="button"
         className="item-row-body item-row-toggle"
-        onClick={() => onComplete(item)}
+        onClick={() => onCheck(item)}
         aria-label={`Check off ${item.name}`}
       >
         <span className="item-name">{item.name}</span>
@@ -113,13 +113,13 @@ const SortableItemRow = memo(function SortableItemRow({
 });
 
 /**
- * Sortable list of items in one category.
- * Check-off completes (removes) the item; order is scoped to this group.
+ * Sortable list of active (unchecked) items in one category.
+ * Check-off moves the item to the crossed-off section at the bottom of the list.
  */
 export function SortableItemGroup({
   items,
   onReorder,
-  onComplete,
+  onCheck,
   onEdit,
   onDelete,
 }: SortableItemGroupProps) {
@@ -167,7 +167,7 @@ export function SortableItemGroup({
             <SortableItemRow
               key={item.id}
               item={item}
-              onComplete={onComplete}
+              onCheck={onCheck}
               onEdit={onEdit}
               onDelete={onDelete}
             />

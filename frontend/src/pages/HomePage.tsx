@@ -41,8 +41,8 @@ function formatRelativeDate(iso: string): string {
 
 function itemCountLabel(list: GroceryList): string {
   if (list.itemCount === 0) return 'No items yet';
-  // Phase D: checked items are removed, so remaining count is the list size.
-  return `${list.itemCount} item${list.itemCount === 1 ? '' : 's'}`;
+  if (list.uncheckedCount === 0) return 'All crossed off';
+  return `${list.uncheckedCount} remaining`;
 }
 
 type ModalMode = { type: 'create' } | { type: 'rename'; list: GroceryList } | null;

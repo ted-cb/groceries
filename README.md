@@ -74,7 +74,7 @@ cd frontend && npm test
 | Item memory (name → category catalog) | Done (Phase A) |
 | Quick-add autocomplete | Done (Phase B) |
 | Smart add (category only when unknown) | Done (Phase C) |
-| Check-off removes item from list | Done (Phase D) |
+| Check-off moves item to crossed-off list (last 100) | Done |
 
 ## API surface (auth required unless noted)
 
